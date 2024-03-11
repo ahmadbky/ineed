@@ -1,10 +1,11 @@
 use iwant::Promptable as _;
 
 fn main() {
-    let (menu, hello) = iwant::selected([("first", 100), ("second", 200), ("more", 300)], ">> ")
-        .then(iwant::written::<String>("hello", ": "))
-        .prompt()
-        .unwrap();
+    let (nom, prénom, age) =
+        iwant::many_written::<(String, String), 2>("votre nom et prénom", ": ", " ")
+            .then(iwant::written::<u8>("age", ": "))
+            .prompt()
+            .unwrap();
 
-    println!("you selected {menu} then wrote {hello}");
+    println!("got {nom} and {prénom}, then {age}")
 }

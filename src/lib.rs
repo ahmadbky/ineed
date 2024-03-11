@@ -1,7 +1,6 @@
 use std::{
     io::{self, BufRead, Write},
     marker::PhantomData,
-    mem::MaybeUninit,
     ops::ControlFlow,
     str::FromStr,
 };
@@ -86,7 +85,7 @@ pub trait Promptable: Sized {
         R: BufRead,
         W: Write;
 
-    fn prompt_with<R, W>(mut self, mut read: R, mut write: W) -> io::Result<Self::Output>
+    fn prompt_with<R, W>(&mut self, mut read: R, mut write: W) -> io::Result<Self::Output>
     where
         R: BufRead,
         W: Write,
@@ -99,7 +98,7 @@ pub trait Promptable: Sized {
         }
     }
 
-    fn prompt(self) -> io::Result<Self::Output> {
+    fn prompt(&mut self) -> io::Result<Self::Output> {
         self.prompt_with(io::stdin().lock(), io::stdout())
     }
 
@@ -370,20 +369,171 @@ pub fn selected<'a, const N: usize, T>(
     list: [(&'a str, T); N],
     prefix: &'a str,
 ) -> Selected<'a, N, T> {
-    let mut msgs = unsafe { MaybeUninit::<[MaybeUninit<&'a str>; N]>::uninit().assume_init() };
-    let mut values = unsafe { MaybeUninit::<[MaybeUninit<Option<T>>; N]>::uninit().assume_init() };
-
-    for (i, (msg, value)) in list.into_iter().enumerate() {
-        msgs[i].write(msg);
-        values[i].write(Some(value));
+    fn split<const N: usize, A, B>(arr: [(A, B); N]) -> ([A; N], [B; N]) {
+        use std::array::from_fn;
+        let mut arr = arr.map(|(a, b)| (Some(a), Some(b)));
+        let a = from_fn(|i| arr[i].0.take().unwrap());
+        let b = from_fn(|i| arr[i].1.take().unwrap());
+        (a, b)
     }
 
-    let msgs = msgs.map(|s| unsafe { s.assume_init() });
-    let values = values.map(|v| unsafe { v.assume_init() });
+    let (msgs, values) = split(list.map(|(a, b)| (a, Some(b))));
 
     Selected {
         msgs: Some(msgs),
         values,
         prefix,
+    }
+}
+
+pub struct Separated<'a, I, T> {
+    inner: WrittenInner<'a>,
+    sep: &'a str,
+    _marker: PhantomData<(I, T)>,
+}
+
+impl<I, T> Promptable for Separated<'_, I, T>
+where
+    I: FromIterator<T>,
+    T: FromStr,
+{
+    type Output = I;
+
+    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    where
+        R: BufRead,
+        W: Write,
+    {
+        self.inner.prompt(read, write).map(|out| {
+            match out
+                .split(self.sep)
+                .map(str::parse)
+                .collect::<Result<I, _>>()
+            {
+                Ok(out) => ControlFlow::Break(out),
+                Err(_) => ControlFlow::Continue(()),
+            }
+        })
+    }
+}
+
+pub fn separated<'a, I, T>(msg: &'a str, prefix: &'a str, sep: &'a str) -> Separated<'a, I, T> {
+    Separated {
+        inner: WrittenInner::new(msg, prefix),
+        sep,
+        _marker: PhantomData,
+    }
+}
+
+pub struct ManyWritten<'a, const N: usize, O> {
+    inner: WrittenInner<'a>,
+    sep: &'a str,
+    _marker: PhantomData<O>,
+}
+
+pub fn many_written<'a, O, const N: usize>(
+    msg: &'a str,
+    prefix: &'a str,
+    sep: &'a str,
+) -> ManyWritten<'a, N, O> {
+    ManyWritten {
+        inner: WrittenInner::new(msg, prefix),
+        sep,
+        _marker: PhantomData,
+    }
+}
+
+trait TupToStrings<const N: usize> {
+    type StringsTup;
+}
+
+macro_rules! impl_tup_to_strings {
+    ($_Single:ident: $_single_num:literal) => {};
+
+    ($Head:ident: $head_num:literal, $($Tail:ident: $tail_num:literal),*) => {
+        impl_tup_to_strings!($($Tail: $tail_num),*);
+        impl<$Head, $($Tail),*> TupToStrings<{ $head_num $(+$tail_num)* }> for ($Head, $($Tail),*) {
+            type StringsTup = (String, $(<$Tail as StringType>::String),*);
+        }
+    };
+
+    ($Head:ident, $($Tail:ident),*) => {
+        impl_tup_to_strings!($Head:1, $($Tail:1),*);
+    }
+}
+
+impl_tup_to_strings! {
+    A, B, C, D, E, F, G,
+    H, I, J, K, L, M, N,
+    O, P, Q, R, S, T, U,
+    V, W, X, Y, Z
+}
+
+trait TryFromOutput<Output>: Sized {
+    fn try_from_output(output: Output) -> Option<Self>;
+}
+
+trait StringType {
+    type String;
+}
+
+impl<T> StringType for T {
+    type String = String;
+}
+
+macro_rules! impl_try_from_output {
+    ($_Single:ident) => {};
+
+    ($Head:ident, $($Tail:ident),*) => {
+        impl_try_from_output!($($Tail),*);
+        impl<$Head, $($Tail),*> TryFromOutput<(String, $(<$Tail as StringType>::String),*)> for ($Head, $($Tail),*)
+        where
+            $Head: FromStr,
+            $($Tail: FromStr),*
+        {
+            #[allow(non_snake_case)]
+            fn try_from_output(($Head, $($Tail),*): (String, $(<$Tail as StringType>::String),*)) -> Option<Self> {
+                Some((
+                    $Head.parse().ok()?,
+                    $($Tail.parse().ok()?),*
+                ))
+            }
+        }
+    };
+}
+
+impl_try_from_output! {
+    A, B, C, D, E, F, G,
+    H, I, J, K, L, M, N,
+    O, P, Q, R, S, T, U,
+    V, W, X, Y, Z
+}
+
+impl<const N: usize, O> Promptable for ManyWritten<'_, N, O>
+where
+    O: TupToStrings<N> + TryFromOutput<<O as TupToStrings<N>>::StringsTup>,
+    <O as TupToStrings<N>>::StringsTup: From<[String; N]>,
+{
+    type Output = O;
+
+    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    where
+        R: BufRead,
+        W: Write,
+    {
+        let input = self.inner.prompt(read, write)?;
+        let strings: [_; N] = match input
+            .split(self.sep)
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+            .try_into()
+        {
+            Ok(array) => array,
+            Err(_) => return Ok(ControlFlow::Continue(())),
+        };
+        match TryFromOutput::try_from_output(strings.into()) {
+            Some(out) => Ok(ControlFlow::Break(out)),
+            None => Ok(ControlFlow::Continue(())),
+        }
     }
 }
