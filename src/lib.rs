@@ -5,6 +5,10 @@ use std::{
     str::FromStr,
 };
 
+use self::format::{FmtRule, FromDefaults, PromptFormat};
+
+pub mod format;
+
 pub struct MaxTries<P> {
     prompt: P,
     current: usize,
@@ -17,11 +21,15 @@ pub struct Then<A, B, O> {
     _marker: PhantomData<O>,
 }
 
-pub trait ThenExt {
+pub struct ThenFmt<A, B, O> {
+    inner: Then<A, B, O>,
+}
+
+pub trait Flattenable {
     type RawOutput;
 }
 
-impl<A, B, O> ThenExt for Then<A, B, O>
+impl<A, B, O> Flattenable for Then<A, B, O>
 where
     A: Promptable,
     B: Promptable,
@@ -77,10 +85,21 @@ impl_from_output! {
     (((((((((A, B), C), D), E), F), G), H), I), J) into (A, B, C, D, E, F, G, H, I, J);
 }
 
+pub struct Formatted<P>
+where
+    P: Promptable,
+{
+    prompt: P,
+    fmt: PromptFormat<<P as Promptable>::FmtRule>,
+}
+
 pub trait Promptable: Sized {
     type Output;
+    type FmtRule: FmtRule;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write;
@@ -90,10 +109,10 @@ pub trait Promptable: Sized {
         R: BufRead,
         W: Write,
     {
+        let fmt = PromptFormat::default();
         loop {
-            match self.prompt_once(&mut read, &mut write)? {
-                ControlFlow::Break(out) => return Ok(out),
-                _ => (),
+            if let ControlFlow::Break(out) = self.prompt_once(&mut read, &mut write, &fmt)? {
+                return Ok(out);
             }
         }
     }
@@ -113,12 +132,22 @@ pub trait Promptable: Sized {
     fn then<P, O>(self, p: P) -> Then<Self, P, O>
     where
         P: Promptable,
-        O: FromOutput<<Then<Self, P, O> as ThenExt>::RawOutput>,
+        O: FromOutput<<Then<Self, P, O> as Flattenable>::RawOutput>,
     {
         Then {
             first: self,
             then: p,
             _marker: PhantomData,
+        }
+    }
+
+    fn then_fmt<P, O>(self, p: P) -> ThenFmt<Self, P, O>
+    where
+        P: Promptable<FmtRule = Self::FmtRule>,
+        O: FromOutput<<Then<Self, P, O> as Flattenable>::RawOutput>,
+    {
+        ThenFmt {
+            inner: self.then(p),
         }
     }
 
@@ -138,6 +167,37 @@ pub trait Promptable: Sized {
     {
         Map { prompt: self, map }
     }
+
+    fn fmt<I>(self, fmt: I) -> Formatted<Self>
+    where
+        I: IntoIterator<Item = Self::FmtRule>,
+    {
+        Formatted {
+            prompt: self,
+            fmt: PromptFormat {
+                rules: fmt.into_iter().collect(),
+            },
+        }
+    }
+}
+
+impl<P> Promptable for Formatted<P>
+where
+    P: Promptable,
+{
+    type Output = <P as Promptable>::Output;
+    type FmtRule = <P as Promptable>::FmtRule;
+
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
+    where
+        R: BufRead,
+        W: Write,
+    {
+        let merged_fmt = self.fmt.merge_with(fmt);
+        self.prompt.prompt_once(read, write, &merged_fmt)
+    }
 }
 
 impl<P, F, T> Promptable for Map<P, F>
@@ -146,16 +206,21 @@ where
     F: FnMut(<P as Promptable>::Output) -> T,
 {
     type Output = T;
+    type FmtRule = <P as Promptable>::FmtRule;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
     {
-        self.prompt.prompt_once(read, write).map(|flow| match flow {
-            ControlFlow::Break(val) => ControlFlow::Break((self.map)(val)),
-            ControlFlow::Continue(_) => ControlFlow::Continue(()),
-        })
+        self.prompt
+            .prompt_once(read, write, fmt)
+            .map(|flow| match flow {
+                ControlFlow::Break(val) => ControlFlow::Break((self.map)(val)),
+                ControlFlow::Continue(_) => ControlFlow::Continue(()),
+            })
     }
 }
 
@@ -165,16 +230,81 @@ where
     F: FnMut(&<P as Promptable>::Output) -> bool,
 {
     type Output = <P as Promptable>::Output;
+    type FmtRule = <P as Promptable>::FmtRule;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
     {
-        self.prompt.prompt_once(read, write).map(|flow| match flow {
-            ControlFlow::Break(val) if (self.until)(&val) => ControlFlow::Break(val),
-            other => other,
-        })
+        self.prompt
+            .prompt_once(read, write, fmt)
+            .map(|flow| match flow {
+                ControlFlow::Break(val) if (self.until)(&val) => ControlFlow::Break(val),
+                _ => ControlFlow::Continue(()),
+            })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ThenFmtRule<A, B> {
+    First(A),
+    Next(B),
+}
+
+impl<A, B> FmtRule for ThenFmtRule<A, B>
+where
+    A: FmtRule,
+    B: FmtRule,
+{
+    type Defaults = Vec<Self>;
+
+    type Struct = ThenFmtRules<<A as FmtRule>::Struct, <B as FmtRule>::Struct>;
+
+    fn defaults() -> Self::Defaults {
+        <A as FmtRule>::defaults()
+            .into_iter()
+            .map(ThenFmtRule::First)
+            .chain(
+                <B as FmtRule>::defaults()
+                    .into_iter()
+                    .map(ThenFmtRule::Next),
+            )
+            .collect()
+    }
+
+    fn fill(acc: Self::Struct, this: Self) -> Self::Struct {
+        match this {
+            ThenFmtRule::First(first) => ThenFmtRules {
+                a_rules: <A as FmtRule>::fill(acc.a_rules, first),
+                ..acc
+            },
+            ThenFmtRule::Next(next) => ThenFmtRules {
+                b_rules: <B as FmtRule>::fill(acc.b_rules, next),
+                ..acc
+            },
+        }
+    }
+}
+
+pub struct ThenFmtRules<A, B> {
+    a_rules: A,
+    b_rules: B,
+}
+
+impl<A, B> FromDefaults<ThenFmtRule<A, B>>
+    for ThenFmtRules<<A as FmtRule>::Struct, <B as FmtRule>::Struct>
+where
+    A: FmtRule,
+    B: FmtRule,
+{
+    fn from_defaults() -> Self {
+        Self {
+            a_rules: <A as FmtRule>::Struct::from_defaults(),
+            b_rules: <B as FmtRule>::Struct::from_defaults(),
+        }
     }
 }
 
@@ -182,27 +312,80 @@ impl<A, B, O> Promptable for Then<A, B, O>
 where
     A: Promptable,
     B: Promptable,
-    O: FromOutput<<Self as ThenExt>::RawOutput>,
+    O: FromOutput<<Self as Flattenable>::RawOutput>,
 {
     type Output = O;
+    type FmtRule = ThenFmtRule<<A as Promptable>::FmtRule, <B as Promptable>::FmtRule>;
 
-    fn prompt_once<R, W>(&mut self, mut read: R, mut write: W) -> io::Result<ControlFlow<O>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<O>>
     where
         R: BufRead,
         W: Write,
     {
-        let ControlFlow::Break(a) = self.first.prompt_once(&mut read, &mut write)? else {
-            return Ok(ControlFlow::Continue(()));
-        };
+        let mut b_fmt = PromptFormat::default();
+        let a_fmt = fmt
+            .rules
+            .iter()
+            .copied()
+            .filter_map(|rule| match rule {
+                ThenFmtRule::First(a) => Some(a),
+                ThenFmtRule::Next(b) => {
+                    b_fmt.extend(Some(b));
+                    None
+                }
+            })
+            .collect();
 
-        let b = loop {
-            if let ControlFlow::Break(b) = self.then.prompt_once(&mut read, &mut write)? {
-                break b;
-            }
-        };
-
-        Ok(ControlFlow::Break(FromOutput::from_output((a, b))))
+        prompt_twice(read, write, self, &a_fmt, &b_fmt)
     }
+}
+
+impl<A, B, O> Promptable for ThenFmt<A, B, O>
+where
+    A: Promptable,
+    B: Promptable<FmtRule = <A as Promptable>::FmtRule>,
+    O: FromOutput<<Then<A, B, O> as Flattenable>::RawOutput>,
+{
+    type Output = O;
+    type FmtRule = <A as Promptable>::FmtRule;
+
+    #[inline(always)]
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
+    where
+        R: BufRead,
+        W: Write,
+    {
+        prompt_twice(read, write, &mut self.inner, fmt, fmt)
+    }
+}
+
+fn prompt_twice<R, W, A, B, O>(
+    mut read: R, mut write: W, prompt: &mut Then<A, B, O>,
+    first_fmt: &PromptFormat<<A as Promptable>::FmtRule>,
+    then_fmt: &PromptFormat<<B as Promptable>::FmtRule>,
+) -> io::Result<ControlFlow<O>>
+where
+    R: BufRead,
+    W: Write,
+    A: Promptable,
+    B: Promptable,
+    O: FromOutput<<Then<A, B, O> as Flattenable>::RawOutput>,
+{
+    let ControlFlow::Break(a) = prompt.first.prompt_once(&mut read, &mut write, first_fmt)? else {
+        return Ok(ControlFlow::Continue(()));
+    };
+
+    let b = loop {
+        if let ControlFlow::Break(b) = prompt.then.prompt_once(&mut read, &mut write, then_fmt)? {
+            break b;
+        }
+    };
+
+    Ok(ControlFlow::Break(FromOutput::from_output((a, b))))
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -214,8 +397,11 @@ where
     P: Promptable,
 {
     type Output = Result<<P as Promptable>::Output, MaxTriesExceeded>;
+    type FmtRule = <P as Promptable>::FmtRule;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
@@ -225,36 +411,57 @@ where
             return Ok(ControlFlow::Break(Err(MaxTriesExceeded)));
         }
 
-        self.prompt.prompt_once(read, write).map(|flow| match flow {
-            ControlFlow::Break(out) => ControlFlow::Break(Ok(out)),
-            ControlFlow::Continue(_) => ControlFlow::Continue(()),
-        })
+        self.prompt
+            .prompt_once(read, write, fmt)
+            .map(|flow| match flow {
+                ControlFlow::Break(out) => ControlFlow::Break(Ok(out)),
+                ControlFlow::Continue(_) => ControlFlow::Continue(()),
+            })
     }
 }
 
-struct WrittenInner<'a> {
+struct WrittenInner<'a, 'fmt> {
     msg: Option<&'a str>,
-    prefix: &'a str,
+    _marker: PhantomData<&'fmt ()>,
 }
 
-impl<'a> WrittenInner<'a> {
-    fn new(msg: &'a str, prefix: &'a str) -> Self {
+fmt_rules! {
+    enum WrittenFmtRule<'a> for struct WrittenFmtRules {
+        Prefix(&'a str = ">> ") for prefix,
+        BreakLine(bool = true) for break_line,
+        RepeatPrompt(bool = false) for repeat_prompt,
+    }
+}
+
+impl<'a> WrittenInner<'a, '_> {
+    fn new(msg: &'a str) -> Self {
         Self {
             msg: Some(msg),
-            prefix,
+            _marker: PhantomData,
         }
     }
 
-    fn prompt<R, W>(&mut self, mut read: R, mut write: W) -> io::Result<String>
+    fn prompt<R, W>(
+        &mut self, mut read: R, mut write: W, fmt: &PromptFormat<WrittenFmtRule<'_>>,
+    ) -> io::Result<String>
     where
         R: BufRead,
         W: Write,
     {
-        if let Some(msg) = self.msg.take() {
+        let fmt = fmt.to_struct();
+        if let Some(msg) = if fmt.repeat_prompt {
+            self.msg
+        } else {
+            self.msg.take()
+        } {
             write!(write, "{msg}")?;
+
+            if fmt.break_line {
+                writeln!(write)?;
+            }
         }
 
-        write!(write, "{}", self.prefix)?;
+        write!(write, "{}", fmt.prefix)?;
         write.flush()?;
 
         let mut s = String::new();
@@ -264,28 +471,31 @@ impl<'a> WrittenInner<'a> {
     }
 }
 
-pub struct Bool<'a> {
-    inner: WrittenInner<'a>,
+pub struct Bool<'a, 'fmt> {
+    inner: WrittenInner<'a, 'fmt>,
 }
 
-pub fn bool<'a>(msg: &'a str, prefix: &'a str) -> Bool<'a> {
+pub fn bool(msg: &str) -> Bool<'_, '_> {
     Bool {
-        inner: WrittenInner::new(msg, prefix),
+        inner: WrittenInner::new(msg),
     }
 }
 
 const TRUE_INPUTS: &[&str] = &["yes", "yep", "true"];
 const FALSE_INPUTS: &[&str] = &["noppe", "nah", "false"];
 
-impl Promptable for Bool<'_> {
+impl<'fmt> Promptable for Bool<'_, 'fmt> {
     type Output = bool;
+    type FmtRule = WrittenFmtRule<'fmt>;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
     {
-        let input = self.inner.prompt(read, write)?;
+        let input = self.inner.prompt(read, write, fmt)?;
         Ok(match () {
             _ if TRUE_INPUTS.iter().any(|s| s.contains(&input)) => ControlFlow::Break(true),
             _ if FALSE_INPUTS.iter().any(|s| s.contains(&input)) => ControlFlow::Break(false),
@@ -294,30 +504,33 @@ impl Promptable for Bool<'_> {
     }
 }
 
-pub struct Written<'a, T> {
-    inner: WrittenInner<'a>,
+pub struct Written<'a, 'fmt, T> {
+    inner: WrittenInner<'a, 'fmt>,
     _marker: PhantomData<T>,
 }
 
-pub fn written<'a, T>(msg: &'a str, prefix: &'a str) -> Written<'a, T> {
+pub fn written<T>(msg: &str) -> Written<'_, '_, T> {
     Written {
-        inner: WrittenInner::new(msg, prefix),
+        inner: WrittenInner::new(msg),
         _marker: PhantomData,
     }
 }
 
-impl<T> Promptable for Written<'_, T>
+impl<'fmt, T> Promptable for Written<'_, 'fmt, T>
 where
     T: FromStr,
 {
     type Output = T;
+    type FmtRule = WrittenFmtRule<'fmt>;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
     {
-        let input = self.inner.prompt(read, write)?;
+        let input = self.inner.prompt(read, write, fmt)?;
         match input.parse() {
             Ok(out) => Ok(ControlFlow::Break(out)),
             Err(_) => Ok(ControlFlow::Continue(())),
@@ -325,30 +538,36 @@ where
     }
 }
 
-pub struct Selected<'a, const N: usize, T> {
+pub struct Selected<'a, 'fmt, const N: usize, T> {
     msgs: Option<[&'a str; N]>,
     values: [Option<T>; N],
-    prefix: &'a str,
+    _marker: PhantomData<&'fmt ()>,
 }
 
-impl<const N: usize, T> Promptable for Selected<'_, N, T> {
+fmt_rules! {
+    enum SelectedFmtRule<'a> for struct SelectedFmtRules {
+        Prefix(&'a str = ">> ") for prefix,
+    }
+}
+
+impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
     type Output = T;
+    type FmtRule = SelectedFmtRule<'fmt>;
 
     fn prompt_once<R, W>(
-        &mut self,
-        mut read: R,
-        mut write: W,
+        &mut self, mut read: R, mut write: W, fmt: &PromptFormat<Self::FmtRule>,
     ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
     {
+        let fmt = fmt.to_struct();
         if let Some(list) = self.msgs.take() {
             for (msg, i) in list.into_iter().zip(1..) {
                 writeln!(write, "[{i}] - {msg}")?;
             }
         }
-        write!(write, "{}", self.prefix)?;
+        write!(write, "{}", fmt.prefix)?;
         write.flush()?;
 
         let mut s = String::new();
@@ -365,10 +584,7 @@ impl<const N: usize, T> Promptable for Selected<'_, N, T> {
     }
 }
 
-pub fn selected<'a, const N: usize, T>(
-    list: [(&'a str, T); N],
-    prefix: &'a str,
-) -> Selected<'a, N, T> {
+pub fn selected<const N: usize, T>(list: [(&str, T); N]) -> Selected<'_, '_, N, T> {
     fn split<const N: usize, A, B>(arr: [(A, B); N]) -> ([A; N], [B; N]) {
         use std::array::from_fn;
         let mut arr = arr.map(|(a, b)| (Some(a), Some(b)));
@@ -382,29 +598,32 @@ pub fn selected<'a, const N: usize, T>(
     Selected {
         msgs: Some(msgs),
         values,
-        prefix,
+        _marker: PhantomData,
     }
 }
 
-pub struct Separated<'a, I, T> {
-    inner: WrittenInner<'a>,
+pub struct Separated<'a, 'fmt, I, T> {
+    inner: WrittenInner<'a, 'fmt>,
     sep: &'a str,
     _marker: PhantomData<(I, T)>,
 }
 
-impl<I, T> Promptable for Separated<'_, I, T>
+impl<'fmt, I, T> Promptable for Separated<'_, 'fmt, I, T>
 where
     I: FromIterator<T>,
     T: FromStr,
 {
     type Output = I;
+    type FmtRule = WrittenFmtRule<'fmt>;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
     {
-        self.inner.prompt(read, write).map(|out| {
+        self.inner.prompt(read, write, fmt).map(|out| {
             match out
                 .split(self.sep)
                 .map(str::parse)
@@ -417,27 +636,25 @@ where
     }
 }
 
-pub fn separated<'a, I, T>(msg: &'a str, prefix: &'a str, sep: &'a str) -> Separated<'a, I, T> {
+pub fn separated<'a, 'fmt, I, T>(msg: &'a str, sep: &'a str) -> Separated<'a, 'fmt, I, T> {
     Separated {
-        inner: WrittenInner::new(msg, prefix),
+        inner: WrittenInner::new(msg),
         sep,
         _marker: PhantomData,
     }
 }
 
-pub struct ManyWritten<'a, const N: usize, O> {
-    inner: WrittenInner<'a>,
+pub struct ManyWritten<'a, 'fmt, const N: usize, O> {
+    inner: WrittenInner<'a, 'fmt>,
     sep: &'a str,
     _marker: PhantomData<O>,
 }
 
-pub fn many_written<'a, O, const N: usize>(
-    msg: &'a str,
-    prefix: &'a str,
-    sep: &'a str,
-) -> ManyWritten<'a, N, O> {
+pub fn many_written<'a, 'fmt, O, const N: usize>(
+    msg: &'a str, sep: &'a str,
+) -> ManyWritten<'a, 'fmt, N, O> {
     ManyWritten {
-        inner: WrittenInner::new(msg, prefix),
+        inner: WrittenInner::new(msg),
         sep,
         _marker: PhantomData,
     }
@@ -509,19 +726,22 @@ impl_try_from_output! {
     V, W, X, Y, Z
 }
 
-impl<const N: usize, O> Promptable for ManyWritten<'_, N, O>
+impl<'fmt, const N: usize, O> Promptable for ManyWritten<'_, 'fmt, N, O>
 where
     O: TupToStrings<N> + TryFromOutput<<O as TupToStrings<N>>::StringsTup>,
     <O as TupToStrings<N>>::StringsTup: From<[String; N]>,
 {
     type Output = O;
+    type FmtRule = WrittenFmtRule<'fmt>;
 
-    fn prompt_once<R, W>(&mut self, read: R, write: W) -> io::Result<ControlFlow<Self::Output>>
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &PromptFormat<Self::FmtRule>,
+    ) -> io::Result<ControlFlow<Self::Output>>
     where
         R: BufRead,
         W: Write,
     {
-        let input = self.inner.prompt(read, write)?;
+        let input = self.inner.prompt(read, write, fmt)?;
         let strings: [_; N] = match input
             .split(self.sep)
             .map(str::to_owned)
@@ -536,4 +756,19 @@ where
             None => Ok(ControlFlow::Continue(())),
         }
     }
+}
+
+/// Not public API.
+#[doc(hidden)]
+pub mod __private {
+    /// Used in macros to quote `1`s
+    pub trait _1 {
+        const _1: usize;
+    }
+
+    impl<T> _1 for T {
+        const _1: usize = 1;
+    }
+
+    pub use std::mem::discriminant;
 }
