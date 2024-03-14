@@ -1,12 +1,27 @@
-use iwant::Promptable as _;
+use iwant::prelude::*;
+
+#[derive(Debug)]
+enum License {
+    Mit,
+    Gpl,
+    Bsd,
+    Apache,
+}
 
 fn main() {
-    let ((nom, prénom, âge), _) =
-        iwant::many_written::<(String, String, u8), 3>("votre nom et prénom et votre âge", " ")
-            .then(iwant::written::<u8>("confirmer votre âge"))
-            .until(|((_, _, âge), confirm_âge)| *âge == *confirm_âge)
-            .prompt()
-            .unwrap();
+    let (author, license) = iwant::written::<String>("author")
+        .then(
+            iwant::selected([
+                ("MIT", License::Mit),
+                ("GPL", License::Gpl),
+                ("BSD", License::Bsd),
+                ("Apache", License::Apache),
+            ])
+            .fmt(iwant::fmt().list_surrounds("<", ">")),
+        )
+        .fmt(iwant::fmt().input_prefix(">> "))
+        .prompt()
+        .unwrap();
 
-    println!("got {nom} and {prénom}, then {âge}")
+    println!("got {author} and {license:?}");
 }
