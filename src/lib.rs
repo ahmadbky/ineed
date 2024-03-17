@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "_nightly", feature(doc_cfg))]
+
 use std::{
     io::{self, BufRead, Write},
     marker::PhantomData,
@@ -477,12 +479,13 @@ impl<'a> WrittenInner<'a, '_> {
         }
     }
 
-    fn prompt<R, W>(
-        &mut self, mut read: R, mut write: W, fmt: &WrittenFmtRules<'_>,
+    fn prompt_with<R, W, F>(
+        &mut self, mut read: R, mut write: W, fmt: &WrittenFmtRules<'_>, f: F,
     ) -> io::Result<String>
     where
         R: BufRead,
         W: Write,
+        F: FnOnce(&mut R) -> io::Result<String>,
     {
         let fmt = fmt.unwrap();
 
@@ -501,10 +504,19 @@ impl<'a> WrittenInner<'a, '_> {
         write!(write, "{}", fmt.input_prefix)?;
         write.flush()?;
 
-        let mut s = String::new();
-        read.read_line(&mut s)?;
+        Ok(f(&mut read)?.trim().to_owned())
+    }
 
-        Ok(s.trim().to_owned())
+    fn prompt<R, W>(&mut self, read: R, write: W, fmt: &WrittenFmtRules<'_>) -> io::Result<String>
+    where
+        R: BufRead,
+        W: Write,
+    {
+        self.prompt_with(read, write, fmt, |read| {
+            let mut s = String::new();
+            read.read_line(&mut s)?;
+            Ok(s)
+        })
     }
 }
 
@@ -962,5 +974,41 @@ where
             Some(out) => Ok(ControlFlow::Break(out)),
             None => Ok(ControlFlow::Continue(())),
         }
+    }
+}
+
+#[cfg(feature = "rpassword")]
+#[cfg_attr(feature = "_nightly", doc(cfg(feature = "rpassword")))]
+pub struct Password<'a, 'fmt> {
+    inner: WrittenInner<'a, 'fmt>,
+}
+
+#[cfg(feature = "rpassword")]
+#[cfg_attr(feature = "_nightly", doc(cfg(feature = "rpassword")))]
+pub fn password(msg: &str) -> Password<'_, '_> {
+    Password {
+        inner: WrittenInner::new(msg),
+    }
+}
+
+#[cfg(feature = "rpassword")]
+#[cfg_attr(feature = "_nightly", doc(cfg(feature = "rpassword")))]
+impl<'fmt> Promptable for Password<'_, 'fmt> {
+    type Output = String;
+    type FmtRules = WrittenFmtRules<'fmt>;
+
+    fn prompt_once<R, W>(
+        &mut self, read: R, write: W, fmt: &Self::FmtRules,
+    ) -> io::Result<ControlFlow<Self::Output>>
+    where
+        R: BufRead,
+        W: Write,
+    {
+        self.inner
+            .prompt_with(read, write, fmt, |_| rpassword::read_password())
+            .map(|s| match s.is_empty() {
+                true => ControlFlow::Continue(()),
+                false => ControlFlow::Break(s),
+            })
     }
 }
