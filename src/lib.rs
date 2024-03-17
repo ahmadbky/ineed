@@ -576,7 +576,8 @@ where
 }
 
 pub struct Selected<'a, 'fmt, const N: usize, T> {
-    msgs: Option<(&'a str, [&'a str; N])>,
+    title: Option<&'a str>,
+    msgs: Option<[&'a str; N]>,
     values: [Option<T>; N],
     _marker: PhantomData<&'fmt ()>,
 }
@@ -743,18 +744,26 @@ impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
         let fmt = fmt.unwrap();
         let (open, close) = fmt.list_surrounds;
 
-        if let Some((title, list)) = if fmt.repeat_prompt {
-            self.msgs
-        } else {
-            self.msgs.take()
-        } {
-            if let Position::Top = fmt.list_msg_pos {
+        if let Position::Top = fmt.list_msg_pos {
+            if let Some(title) = if fmt.repeat_prompt {
+                self.title
+            } else {
+                self.title.take()
+            } {
                 writeln!(write, "{}{}", fmt.msg_prefix, title)?;
             }
+        }
+        if let Some(list) = self.msgs.take() {
             for (msg, i) in list.into_iter().zip(1..) {
                 writeln!(write, "{open}{i}{close} - {msg}")?;
             }
-            if let Position::Bottom = fmt.list_msg_pos {
+        }
+        if let Position::Bottom = fmt.list_msg_pos {
+            if let Some(title) = if fmt.repeat_prompt {
+                self.title
+            } else {
+                self.title.take()
+            } {
                 write!(write, "{}{}", fmt.msg_prefix, title)?;
                 if fmt.break_line {
                     writeln!(write)?;
@@ -780,7 +789,7 @@ impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
 }
 
 pub fn selected<'a, 'fmt, const N: usize, T>(
-    msg: &'a str, list: [(&'a str, T); N],
+    title: &'a str, list: [(&'a str, T); N],
 ) -> Selected<'a, 'fmt, N, T> {
     fn split<const N: usize, A, B>(arr: [(A, B); N]) -> ([A; N], [B; N]) {
         use std::array::from_fn;
@@ -793,7 +802,8 @@ pub fn selected<'a, 'fmt, const N: usize, T>(
     let (msgs, values) = split(list.map(|(a, b)| (a, Some(b))));
 
     Selected {
-        msgs: Some((msg, msgs)),
+        title: Some(title),
+        msgs: Some(msgs),
         values,
         _marker: PhantomData,
     }

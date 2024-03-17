@@ -20,15 +20,9 @@ fn main() {
                     ("Apache", License::Apache),
                 ],
             )
-            .fmt(
-                iwant::fmt()
-                    .break_line(false)
-                    .input_prefix(": ")
-                    .list_surrounds("<", ">")
-                    .list_msg_pos(iwant::format::Position::Bottom),
-            ),
+            .fmt(iwant::fmt().break_line(false).input_prefix(": ").repeat_prompt(true)),
         )
-        .fmt(iwant::fmt().input_prefix(">> ").repeat_prompt(true))
+        .fmt(iwant::fmt().input_prefix(">> "))
         .prompt()
         .unwrap();
 
