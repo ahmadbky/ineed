@@ -1,11 +1,13 @@
 #[derive(Clone, Copy)]
-pub struct Fmt;
+pub struct Fmt {
+    _priv: (),
+}
 
 impl FmtRule for Fmt {}
 
 #[inline(always)]
 pub fn fmt() -> Fmt {
-    Fmt
+    Fmt { _priv: () }
 }
 
 pub trait Mergeable {
@@ -35,10 +37,7 @@ pub trait FmtRule: Sized + Copy {
     }
 
     fn list_msg_pos(self, pos: Position) -> ListMsgPos<Self> {
-        ListMsgPos {
-            rule: self,
-            pos,
-        }
+        ListMsgPos { rule: self, pos }
     }
 
     fn break_line(self, value: bool) -> BreakLine<Self> {
