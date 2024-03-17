@@ -6,8 +6,8 @@ use std::{
 };
 
 use self::format::{
-    BreakLine, Fmt, FmtRule, FmtRules, InputPrefix, ListSurrounds, Mergeable, MsgPrefix,
-    RepeatPrompt, Unwrappable,
+    BreakLine, Fmt, FmtRule, FmtRules, InputPrefix, ListMsgPos, ListSurrounds, Mergeable,
+    MsgPrefix, Position, RepeatPrompt, Unwrappable,
 };
 
 pub mod format;
@@ -569,14 +569,14 @@ where
     {
         let input = self.inner.prompt(read, write, fmt)?;
         match input.parse() {
-            Ok(out) => Ok(ControlFlow::Break(out)),
-            Err(_) => Ok(ControlFlow::Continue(())),
+            Ok(out) if !input.is_empty() => Ok(ControlFlow::Break(out)),
+            _ => Ok(ControlFlow::Continue(())),
         }
     }
 }
 
 pub struct Selected<'a, 'fmt, const N: usize, T> {
-    msgs: Option<[&'a str; N]>,
+    msgs: Option<(&'a str, [&'a str; N])>,
     values: [Option<T>; N],
     _marker: PhantomData<&'fmt ()>,
 }
@@ -585,6 +585,7 @@ pub struct Selected<'a, 'fmt, const N: usize, T> {
 pub struct SelectedFmtRules<'a> {
     prompt: WrittenFmtRules<'a>,
     list_surrounds: Option<(&'a str, &'a str)>,
+    list_msg_pos: Option<Position>,
 }
 
 impl<'a, R> From<R> for SelectedFmtRules<'a>
@@ -595,6 +596,18 @@ where
         Self {
             prompt: From::from(value),
             ..Default::default()
+        }
+    }
+}
+
+impl<R> From<ListMsgPos<R>> for SelectedFmtRules<'_>
+where
+    Self: From<R>,
+{
+    fn from(value: ListMsgPos<R>) -> Self {
+        Self {
+            list_msg_pos: Some(value.pos),
+            ..Self::from(value.rule)
         }
     }
 }
@@ -616,6 +629,7 @@ impl Mergeable for SelectedFmtRules<'_> {
         Self {
             prompt: Mergeable::merge_with(&self.prompt, &other.prompt),
             list_surrounds: self.list_surrounds.or(other.list_surrounds),
+            list_msg_pos: self.list_msg_pos.or(other.list_msg_pos),
         }
     }
 }
@@ -629,6 +643,9 @@ impl<'a> Unwrappable for SelectedFmtRules<'a> {
             list_surrounds: self
                 .list_surrounds
                 .unwrap_or(Self::Unwrapped::DEFAULT.list_surrounds),
+            list_msg_pos: self
+                .list_msg_pos
+                .unwrap_or(Self::Unwrapped::DEFAULT.list_msg_pos),
         }
     }
 }
@@ -636,12 +653,14 @@ impl<'a> Unwrappable for SelectedFmtRules<'a> {
 pub struct UnwrappedSelectedFmtRules<'a> {
     prompt: UnwrappedWrittenFmtRules<'a>,
     list_surrounds: (&'a str, &'a str),
+    list_msg_pos: Position,
 }
 
 impl UnwrappedSelectedFmtRules<'_> {
     pub const DEFAULT: Self = Self {
         prompt: UnwrappedWrittenFmtRules::DEFAULT,
         list_surrounds: ("[", "]"),
+        list_msg_pos: Position::Bottom,
     };
 }
 
@@ -658,11 +677,26 @@ impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
     {
         let fmt = fmt.unwrap();
         let (open, close) = fmt.list_surrounds;
-        if let Some(list) = self.msgs.take() {
+
+        if let Some((title, list)) = if fmt.prompt.repeat_prompt {
+            self.msgs
+        } else {
+            self.msgs.take()
+        } {
+            if let Position::Top = fmt.list_msg_pos {
+                writeln!(write, "{}{}", fmt.prompt.msg_prefix, title)?;
+            }
             for (msg, i) in list.into_iter().zip(1..) {
                 writeln!(write, "{open}{i}{close} - {msg}")?;
             }
+            if let Position::Bottom = fmt.list_msg_pos {
+                write!(write, "{}{}", fmt.prompt.msg_prefix, title)?;
+                if fmt.prompt.break_line {
+                    writeln!(write)?;
+                }
+            }
         }
+
         write!(write, "{}", fmt.prompt.input_prefix)?;
         write.flush()?;
 
@@ -680,7 +714,9 @@ impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
     }
 }
 
-pub fn selected<const N: usize, T>(list: [(&str, T); N]) -> Selected<'_, '_, N, T> {
+pub fn selected<'a, 'fmt, const N: usize, T>(
+    msg: &'a str, list: [(&'a str, T); N],
+) -> Selected<'a, 'fmt, N, T> {
     fn split<const N: usize, A, B>(arr: [(A, B); N]) -> ([A; N], [B; N]) {
         use std::array::from_fn;
         let mut arr = arr.map(|(a, b)| (Some(a), Some(b)));
@@ -692,7 +728,7 @@ pub fn selected<const N: usize, T>(list: [(&str, T); N]) -> Selected<'_, '_, N, 
     let (msgs, values) = split(list.map(|(a, b)| (a, Some(b))));
 
     Selected {
-        msgs: Some(msgs),
+        msgs: Some((msg, msgs)),
         values,
         _marker: PhantomData,
     }
@@ -725,8 +761,8 @@ where
                 .map(str::parse)
                 .collect::<Result<I, _>>()
             {
-                Ok(out) => ControlFlow::Break(out),
-                Err(_) => ControlFlow::Continue(()),
+                Ok(o) if !out.is_empty() => ControlFlow::Break(o),
+                _ => ControlFlow::Continue(()),
             }
         })
     }

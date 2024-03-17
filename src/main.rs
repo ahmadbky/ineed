@@ -11,15 +11,18 @@ enum License {
 fn main() {
     let (author, license) = iwant::written::<String>("author")
         .then(
-            iwant::selected([
-                ("MIT", License::Mit),
-                ("GPL", License::Gpl),
-                ("BSD", License::Bsd),
-                ("Apache", License::Apache),
-            ])
+            iwant::selected(
+                "choose the license",
+                [
+                    ("MIT", License::Mit),
+                    ("GPL", License::Gpl),
+                    ("BSD", License::Bsd),
+                    ("Apache", License::Apache),
+                ],
+            )
             .fmt(iwant::fmt().list_surrounds("<", ">")),
         )
-        .fmt(iwant::fmt().input_prefix(">> "))
+        .fmt(iwant::fmt().input_prefix(">> ").repeat_prompt(true))
         .prompt()
         .unwrap();
 

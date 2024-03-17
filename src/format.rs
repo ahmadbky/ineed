@@ -34,6 +34,13 @@ pub trait FmtRule: Sized + Copy {
         }
     }
 
+    fn list_msg_pos(self, pos: Position) -> ListMsgPos<Self> {
+        ListMsgPos {
+            rule: self,
+            pos,
+        }
+    }
+
     fn break_line(self, value: bool) -> BreakLine<Self> {
         BreakLine { rule: self, value }
     }
@@ -66,6 +73,20 @@ pub struct ListSurrounds<'a, R> {
 }
 
 impl<R: FmtRule> FmtRule for ListSurrounds<'_, R> {}
+
+#[derive(Clone, Copy)]
+pub enum Position {
+    Top,
+    Bottom,
+}
+
+#[derive(Clone, Copy)]
+pub struct ListMsgPos<R> {
+    pub(crate) rule: R,
+    pub(crate) pos: Position,
+}
+
+impl<R: FmtRule> FmtRule for ListMsgPos<R> {}
 
 #[derive(Clone, Copy)]
 pub struct BreakLine<R> {
