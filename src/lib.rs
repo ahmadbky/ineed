@@ -583,19 +583,64 @@ pub struct Selected<'a, 'fmt, const N: usize, T> {
 
 #[derive(Default)]
 pub struct SelectedFmtRules<'a> {
-    prompt: WrittenFmtRules<'a>,
+    msg_prefix: Option<&'a str>,
+    input_prefix: Option<&'a str>,
+    repeat_prompt: Option<bool>,
+    break_line: Option<bool>,
     list_surrounds: Option<(&'a str, &'a str)>,
     list_msg_pos: Option<Position>,
 }
 
-impl<'a, R> From<R> for SelectedFmtRules<'a>
+impl From<Fmt> for SelectedFmtRules<'_> {
+    fn from(_: Fmt) -> Self {
+        Self::default()
+    }
+}
+
+impl<'a, R> From<MsgPrefix<'a, R>> for SelectedFmtRules<'a>
 where
-    WrittenFmtRules<'a>: From<R>,
+    Self: From<R>,
 {
-    fn from(value: R) -> Self {
+    fn from(value: MsgPrefix<'a, R>) -> Self {
         Self {
-            prompt: From::from(value),
-            ..Default::default()
+            msg_prefix: Some(value.prefix),
+            ..Self::from(value.rule)
+        }
+    }
+}
+
+impl<'a, R> From<InputPrefix<'a, R>> for SelectedFmtRules<'a>
+where
+    Self: From<R>,
+{
+    fn from(value: InputPrefix<'a, R>) -> Self {
+        Self {
+            input_prefix: Some(value.prefix),
+            ..Self::from(value.rule)
+        }
+    }
+}
+
+impl<R> From<BreakLine<R>> for SelectedFmtRules<'_>
+where
+    Self: From<R>,
+{
+    fn from(value: BreakLine<R>) -> Self {
+        Self {
+            break_line: Some(value.value),
+            ..Self::from(value.rule)
+        }
+    }
+}
+
+impl<R> From<RepeatPrompt<R>> for SelectedFmtRules<'_>
+where
+    Self: From<R>,
+{
+    fn from(value: RepeatPrompt<R>) -> Self {
+        Self {
+            repeat_prompt: Some(value.value),
+            ..Self::from(value.rule)
         }
     }
 }
@@ -627,7 +672,10 @@ where
 impl Mergeable for SelectedFmtRules<'_> {
     fn merge_with(&self, other: &Self) -> Self {
         Self {
-            prompt: Mergeable::merge_with(&self.prompt, &other.prompt),
+            msg_prefix: self.msg_prefix.or(other.msg_prefix),
+            input_prefix: self.input_prefix.or(other.input_prefix),
+            break_line: self.break_line.or(other.break_line),
+            repeat_prompt: self.repeat_prompt.or(other.repeat_prompt),
             list_surrounds: self.list_surrounds.or(other.list_surrounds),
             list_msg_pos: self.list_msg_pos.or(other.list_msg_pos),
         }
@@ -639,7 +687,18 @@ impl<'a> Unwrappable for SelectedFmtRules<'a> {
 
     fn unwrap(&self) -> Self::Unwrapped {
         Self::Unwrapped {
-            prompt: Unwrappable::unwrap(&self.prompt),
+            msg_prefix: self
+                .msg_prefix
+                .unwrap_or(Self::Unwrapped::DEFAULT.msg_prefix),
+            input_prefix: self
+                .input_prefix
+                .unwrap_or(Self::Unwrapped::DEFAULT.input_prefix),
+            break_line: self
+                .break_line
+                .unwrap_or(Self::Unwrapped::DEFAULT.break_line),
+            repeat_prompt: self
+                .repeat_prompt
+                .unwrap_or(Self::Unwrapped::DEFAULT.repeat_prompt),
             list_surrounds: self
                 .list_surrounds
                 .unwrap_or(Self::Unwrapped::DEFAULT.list_surrounds),
@@ -651,14 +710,20 @@ impl<'a> Unwrappable for SelectedFmtRules<'a> {
 }
 
 pub struct UnwrappedSelectedFmtRules<'a> {
-    prompt: UnwrappedWrittenFmtRules<'a>,
+    msg_prefix: &'a str,
+    input_prefix: &'a str,
+    break_line: bool,
+    repeat_prompt: bool,
     list_surrounds: (&'a str, &'a str),
     list_msg_pos: Position,
 }
 
 impl UnwrappedSelectedFmtRules<'_> {
     pub const DEFAULT: Self = Self {
-        prompt: UnwrappedWrittenFmtRules::DEFAULT,
+        msg_prefix: UnwrappedWrittenFmtRules::DEFAULT.msg_prefix,
+        input_prefix: UnwrappedWrittenFmtRules::DEFAULT.input_prefix,
+        break_line: UnwrappedWrittenFmtRules::DEFAULT.break_line,
+        repeat_prompt: UnwrappedWrittenFmtRules::DEFAULT.repeat_prompt,
         list_surrounds: ("[", "]"),
         list_msg_pos: Position::Bottom,
     };
@@ -678,26 +743,26 @@ impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
         let fmt = fmt.unwrap();
         let (open, close) = fmt.list_surrounds;
 
-        if let Some((title, list)) = if fmt.prompt.repeat_prompt {
+        if let Some((title, list)) = if fmt.repeat_prompt {
             self.msgs
         } else {
             self.msgs.take()
         } {
             if let Position::Top = fmt.list_msg_pos {
-                writeln!(write, "{}{}", fmt.prompt.msg_prefix, title)?;
+                writeln!(write, "{}{}", fmt.msg_prefix, title)?;
             }
             for (msg, i) in list.into_iter().zip(1..) {
                 writeln!(write, "{open}{i}{close} - {msg}")?;
             }
             if let Position::Bottom = fmt.list_msg_pos {
-                write!(write, "{}{}", fmt.prompt.msg_prefix, title)?;
-                if fmt.prompt.break_line {
+                write!(write, "{}{}", fmt.msg_prefix, title)?;
+                if fmt.break_line {
                     writeln!(write)?;
                 }
             }
         }
 
-        write!(write, "{}", fmt.prompt.input_prefix)?;
+        write!(write, "{}", fmt.input_prefix)?;
         write.flush()?;
 
         let mut s = String::new();
