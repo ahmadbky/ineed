@@ -1,4 +1,7 @@
+//! CLI prompting library.
+
 #![cfg_attr(nightly, feature(doc_cfg))]
+#![warn(missing_docs, unused_allocation, missing_copy_implementations)]
 
 use std::{
     io::{self, BufRead, Write},
