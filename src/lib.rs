@@ -1,7 +1,7 @@
 //! CLI prompting library.
 
 #![cfg_attr(nightly, feature(doc_cfg))]
-// #![warn(missing_docs, unused_allocation, missing_copy_implementations)]
+#![warn(missing_docs, unused_allocation, missing_copy_implementations)]
 
 use std::{
     io::{self, BufRead, Write},
@@ -18,12 +18,21 @@ mod promptables;
 use format::rules::WrittenFmtRules;
 pub use promptables::*;
 
+/// Exposes some traits to access their methods more conveniently.
+///
+/// This is intended to be used like this: `use ineed::prelude::*;`.
+///
+/// Promptable types aren't exposed here, so you must either import them yourself or use path syntax,
+/// for example with `ineed::written(...)`.
 pub mod prelude {
     pub use super::{Promptable as _, format::FmtRule as _};
 }
 
+/// Represents types that can be prompted to the console.
 pub trait Promptable {
+    /// The type of the output of the prompt.
     type Output;
+    /// The type of styling rules the promptable supports.
     type FmtRules: FmtRules;
 
     fn prompt_once<R, W>(

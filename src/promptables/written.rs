@@ -91,3 +91,127 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::BufReader;
+
+    use crate::{
+        format::{FmtRule, Unwrappable as _, rules::WrittenFmtRules},
+        prelude::*,
+    };
+
+    #[test]
+    fn normal_str_input() -> anyhow::Result<()> {
+        let input = b"hello\n";
+        let mut output = Vec::new();
+
+        let res = crate::written::<String>("foobar")
+            .prompt_with(BufReader::new(input.as_slice()), &mut output)?;
+        assert_eq!(res, "hello");
+
+        let default_fmt = WrittenFmtRules::default().unwrap();
+        let expected_msg = format!(
+            "{}foobar{}{}",
+            default_fmt.msg_prefix,
+            if default_fmt.break_line { "\n" } else { "" },
+            default_fmt.input_prefix
+        );
+        assert_eq!(output.as_slice(), expected_msg.as_bytes());
+
+        Ok(())
+    }
+
+    #[test]
+    fn normal_int_input() -> anyhow::Result<()> {
+        let input = b"34\n";
+        let mut output = Vec::new();
+
+        let res = crate::written::<i32>("foobi").prompt_with(input.as_slice(), &mut output)?;
+        assert_eq!(res, 34);
+
+        let default_fmt = WrittenFmtRules::default().unwrap();
+        let expected_msg = format!(
+            "{}foobi{}{}",
+            default_fmt.msg_prefix,
+            if default_fmt.break_line { "\n" } else { "" },
+            default_fmt.input_prefix
+        );
+        assert_eq!(output.as_slice(), expected_msg.as_bytes());
+
+        Ok(())
+    }
+
+    #[test]
+    fn repeat_5_times_int_input() -> anyhow::Result<()> {
+        let input = b"nop\nnop\nnop\nnop\n23\n";
+        let mut output = Vec::new();
+
+        let res = crate::written::<i32>("googa").prompt_with(input.as_slice(), &mut output)?;
+        assert_eq!(res, 23);
+
+        let default_fmt = WrittenFmtRules::default().unwrap();
+        let expected_msg = format!(
+            "{0}googa{1}{2}{3}{3}{3}{3}",
+            default_fmt.msg_prefix,
+            if default_fmt.break_line { "\n" } else { "" },
+            default_fmt.input_prefix,
+            if default_fmt.break_line {
+                default_fmt.input_prefix.to_owned()
+            } else {
+                format!(
+                    "{}googa{}",
+                    default_fmt.msg_prefix, default_fmt.input_prefix
+                )
+            },
+        );
+        assert_eq!(output.as_slice(), expected_msg.as_bytes());
+
+        Ok(())
+    }
+
+    #[test]
+    fn fully_customized_fmt_with_good_input() -> anyhow::Result<()> {
+        let input = b"hello\n";
+        let mut output = Vec::new();
+
+        let res = crate::written::<String>("booga")
+            .fmt(
+                crate::fmt()
+                    .break_line(false)
+                    .repeat_prompt(true)
+                    .msg_prefix("* ")
+                    .input_prefix(": "),
+            )
+            .prompt_with(input.as_slice(), &mut output)?;
+
+        assert_eq!(res, "hello");
+        assert_eq!(output.as_slice(), b"* booga: ");
+
+        Ok(())
+    }
+
+    #[test]
+    fn fully_customized_fmt_with_bad_input() -> anyhow::Result<()> {
+        let input = b"hello\nhello\nhello\nhello\n2\n";
+        let mut output = Vec::new();
+
+        let res = crate::written::<i32>("booga")
+            .fmt(
+                crate::fmt()
+                    .break_line(false)
+                    .repeat_prompt(true)
+                    .msg_prefix("* ")
+                    .input_prefix(": "),
+            )
+            .prompt_with(input.as_slice(), &mut output)?;
+
+        assert_eq!(res, 2);
+        assert_eq!(
+            output.as_slice(),
+            b"* booga: * booga: * booga: * booga: * booga: "
+        );
+
+        Ok(())
+    }
+}

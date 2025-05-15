@@ -94,6 +94,7 @@ impl<'a> Unwrappable for WrittenFmtRules<'a> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct UnwrappedWrittenFmtRules<'a> {
     pub msg_prefix: &'a str,
     pub input_prefix: &'a str,
@@ -108,4 +109,11 @@ impl UnwrappedWrittenFmtRules<'_> {
         break_line: true,
         repeat_prompt: false,
     };
+}
+
+impl Default for UnwrappedWrittenFmtRules<'_> {
+    #[inline(always)]
+    fn default() -> Self {
+        Self::DEFAULT
+    }
 }

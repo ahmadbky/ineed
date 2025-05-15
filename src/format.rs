@@ -1,5 +1,10 @@
+//! Module exposing types to customize prompt styling.
+
 pub mod rules;
 
+/// The base type to customize a prompt styling.
+///
+/// This is intended to be used with the [`fmt()`] function.
 #[derive(Clone, Copy)]
 pub struct Fmt {
     _priv: (),
@@ -107,3 +112,85 @@ impl<R: FmtRule> FmtRule for RepeatPrompt<R> {}
 
 pub trait FmtRules: From<Fmt> + Mergeable + Unwrappable {}
 impl<T> FmtRules for T where T: From<Fmt> + Mergeable + Unwrappable {}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        format::{Mergeable, rules::UnwrappedWrittenFmtRules},
+        prelude::*,
+    };
+
+    use super::{Unwrappable as _, rules::WrittenFmtRules};
+
+    #[test]
+    fn partial_written_fmt_infer_default() {
+        let default_fmt_rules = WrittenFmtRules::default().unwrap();
+        let fmt_rules = crate::fmt()
+            .msg_prefix("my super prefix")
+            .break_line(!default_fmt_rules.break_line);
+        let fmt_rules = WrittenFmtRules::from(fmt_rules).unwrap();
+
+        assert_eq!(
+            fmt_rules,
+            UnwrappedWrittenFmtRules {
+                msg_prefix: "my super prefix",
+                break_line: !default_fmt_rules.break_line,
+                ..default_fmt_rules
+            }
+        )
+    }
+
+    #[test]
+    fn written_fmt_exclusive_merge() {
+        let default_fmt_rules = WrittenFmtRules::default().unwrap();
+
+        let fmt_rules1 = crate::fmt()
+            .msg_prefix("my super prefix")
+            .break_line(!default_fmt_rules.break_line);
+        let fmt_rules1 = WrittenFmtRules::from(fmt_rules1);
+
+        let fmt_rules2 = crate::fmt()
+            .input_prefix("my giga input prefix")
+            .repeat_prompt(!default_fmt_rules.repeat_prompt);
+        let fmt_rules2 = WrittenFmtRules::from(fmt_rules2);
+
+        let fmt_rules = fmt_rules1.merge_with(&fmt_rules2).unwrap();
+
+        assert_eq!(
+            fmt_rules,
+            UnwrappedWrittenFmtRules {
+                msg_prefix: "my super prefix",
+                input_prefix: "my giga input prefix",
+                break_line: !default_fmt_rules.break_line,
+                repeat_prompt: !default_fmt_rules.repeat_prompt,
+            }
+        )
+    }
+
+    #[test]
+    fn written_fmt_conflicting_merge() {
+        let fmt_rules1 = crate::fmt().msg_prefix("my msg prefix 1");
+        let fmt_rules1 = WrittenFmtRules::from(fmt_rules1);
+
+        let fmt_rules2 = crate::fmt().msg_prefix("my omega msg prefix 2");
+        let fmt_rules2 = WrittenFmtRules::from(fmt_rules2);
+
+        let merged = fmt_rules1.merge_with(&fmt_rules2).unwrap();
+        assert_eq!(
+            merged,
+            UnwrappedWrittenFmtRules {
+                msg_prefix: "my msg prefix 1",
+                ..Default::default()
+            }
+        );
+
+        let merged = fmt_rules2.merge_with(&fmt_rules1).unwrap();
+        assert_eq!(
+            merged,
+            UnwrappedWrittenFmtRules {
+                msg_prefix: "my omega msg prefix 2",
+                ..Default::default()
+            }
+        );
+    }
+}
