@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "_nightly", feature(doc_cfg))]
+#![cfg_attr(nightly, feature(doc_cfg))]
 
 use std::{
     io::{self, BufRead, Write},
@@ -16,7 +16,7 @@ pub mod format;
 pub use format::fmt;
 
 pub mod prelude {
-    pub use super::{format::FmtRule as _, Promptable as _};
+    pub use super::{Promptable as _, format::FmtRule as _};
 }
 
 pub struct MaxTries<P> {
@@ -905,8 +905,10 @@ impl_tup_to_strings! {
     V, W, X, Y, Z
 }
 
-trait TryFromOutput<Output>: Sized {
-    fn try_from_output(output: Output) -> Option<Self>;
+trait TryFromOutput<Output> {
+    fn try_from_output(output: Output) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 trait StringType {
@@ -978,13 +980,13 @@ where
 }
 
 #[cfg(feature = "rpassword")]
-#[cfg_attr(feature = "_nightly", doc(cfg(feature = "rpassword")))]
+#[cfg_attr(nightly, doc(cfg(feature = "rpassword")))]
 pub struct Password<'a, 'fmt> {
     inner: WrittenInner<'a, 'fmt>,
 }
 
 #[cfg(feature = "rpassword")]
-#[cfg_attr(feature = "_nightly", doc(cfg(feature = "rpassword")))]
+#[cfg_attr(nightly, doc(cfg(feature = "rpassword")))]
 pub fn password(msg: &str) -> Password<'_, '_> {
     Password {
         inner: WrittenInner::new(msg),
@@ -992,7 +994,7 @@ pub fn password(msg: &str) -> Password<'_, '_> {
 }
 
 #[cfg(feature = "rpassword")]
-#[cfg_attr(feature = "_nightly", doc(cfg(feature = "rpassword")))]
+#[cfg_attr(nightly, doc(cfg(feature = "rpassword")))]
 impl<'fmt> Promptable for Password<'_, 'fmt> {
     type Output = String;
     type FmtRules = WrittenFmtRules<'fmt>;

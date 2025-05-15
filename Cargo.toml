@@ -1,21 +1,23 @@
 [package]
 name = "ineed"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rpassword = { version = "7.3.1", optional = true }
-thiserror = "1.0.57"
+rpassword = { version = "7.4.0", optional = true }
+thiserror = "2.0.12"
 
 [dev-dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.98"
+
+[build-dependencies]
+rustc_version = "0.4.1"
 
 [features]
 default = []
 rpassword = ["dep:rpassword"]
-_nightly = []
 
 [package.metadata.docs.rs]
 all-features = true
