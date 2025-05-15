@@ -530,8 +530,8 @@ pub fn bool(msg: &str) -> Bool<'_, '_> {
     }
 }
 
-const TRUE_INPUTS: &[&str] = &["yes", "yep", "true"];
-const FALSE_INPUTS: &[&str] = &["noppe", "nah", "false"];
+const TRUE_INPUTS: &[&str] = &["y", "ye", "yes", "yep", "true"];
+const FALSE_INPUTS: &[&str] = &["n", "no", "nop", "nope", "nopp", "nah", "false"];
 
 impl<'fmt> Promptable for Bool<'_, 'fmt> {
     type Output = bool;
@@ -544,10 +544,10 @@ impl<'fmt> Promptable for Bool<'_, 'fmt> {
         R: BufRead,
         W: Write,
     {
-        let input = self.inner.prompt(read, write, fmt)?;
+        let input = self.inner.prompt(read, write, fmt)?.trim().to_lowercase();
         Ok(match () {
-            _ if TRUE_INPUTS.iter().any(|s| s.contains(&input)) => ControlFlow::Break(true),
-            _ if FALSE_INPUTS.iter().any(|s| s.contains(&input)) => ControlFlow::Break(false),
+            _ if TRUE_INPUTS.iter().any(|s| input.as_str() == *s) => ControlFlow::Break(true),
+            _ if FALSE_INPUTS.iter().any(|s| input.as_str() == *s) => ControlFlow::Break(false),
             _ => ControlFlow::Continue(()),
         })
     }
