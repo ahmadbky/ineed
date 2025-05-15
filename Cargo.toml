@@ -2,8 +2,18 @@
 name = "ineed"
 version = "0.1.0"
 edition = "2024"
+authors = ["Ahmad Baalbaky <ahmadjfbky@gmail.com>"]
+license = "MIT"
+description = "CLI prompting library"
+keywords = ["cli", "terminal", "utility", "tool"]
+categories = ["command-line-utilities", "command-line-interface"]
+exclude = ["target", "Cargo.lock"]
+repository = "https://github.com/ahmadbky/ineed"
+documentation = "https://docs.rs/ineed"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "ineed"
+path = "src/lib.rs"
 
 [dependencies]
 rpassword = { version = "7.4.0", optional = true }
