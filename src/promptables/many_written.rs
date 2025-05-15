@@ -18,6 +18,8 @@ pub fn many_written<'a, 'fmt, O, const N: usize>(
     }
 }
 
+/// Used to associate a tuple of concrete types into a tuple of strings.
+/// `N` is the amount of types the tuples contain.
 trait TupToStrings<const N: usize> {
     type StringsTup;
 }
@@ -44,12 +46,14 @@ impl_tup_to_strings! {
     V, W, X, Y, Z
 }
 
+/// Used to parse a tuple of strings into a tuple of concrete types.
 trait TryFromOutput<Output> {
     fn try_from_output(output: Output) -> Option<Self>
     where
         Self: Sized;
 }
 
+/// Used for the `impl_try_from_output` macro expansion, to repeat the String type mention in tuples.
 trait StringType {
     type String;
 }
