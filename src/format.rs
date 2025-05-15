@@ -1,3 +1,5 @@
+pub mod rules;
+
 #[derive(Clone, Copy)]
 pub struct Fmt {
     _priv: (),

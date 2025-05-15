@@ -1,6 +1,6 @@
 use std::{io, marker::PhantomData, ops::ControlFlow};
 
-use crate::{Promptable, ThenFmtRules};
+use crate::{Promptable, format::rules::ThenFmtRules};
 
 pub trait FromOutput<Output> {
     fn from_output(output: Output) -> Self;

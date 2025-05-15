@@ -1,8 +1,8 @@
 use std::{io, marker::PhantomData, ops::ControlFlow};
 
 use crate::{
-    Promptable, SelectedFmtRules,
-    format::{Position, Unwrappable as _},
+    Promptable,
+    format::{Position, Unwrappable as _, rules::SelectedFmtRules},
 };
 
 pub struct Selected<'a, 'fmt, const N: usize, T> {
