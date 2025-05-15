@@ -19,7 +19,7 @@ pub mod prelude {
     pub use super::{Promptable as _, format::FmtRule as _};
 }
 
-pub trait Promptable: Sized {
+pub trait Promptable {
     type Output;
     type FmtRules: FmtRules;
 
@@ -47,7 +47,10 @@ pub trait Promptable: Sized {
         self.prompt_with(io::stdin().lock(), io::stdout())
     }
 
-    fn max_tries(self, max: usize) -> MaxTries<Self> {
+    fn max_tries(self, max: usize) -> MaxTries<Self>
+    where
+        Self: Sized,
+    {
         MaxTries {
             prompt: self,
             current: 0,
@@ -57,6 +60,7 @@ pub trait Promptable: Sized {
 
     fn then<P, O>(self, p: P) -> Then<Self, P, O>
     where
+        Self: Sized,
         P: Promptable,
         O: FromOutput<<Then<Self, P, O> as Flattenable>::RawOutput>,
     {
@@ -69,6 +73,7 @@ pub trait Promptable: Sized {
 
     fn until<F>(self, until: F) -> Until<Self, F>
     where
+        Self: Sized,
         F: FnMut(&Self::Output) -> bool,
     {
         Until {
@@ -79,6 +84,7 @@ pub trait Promptable: Sized {
 
     fn map<F, T>(self, map: F) -> Map<Self, F>
     where
+        Self: Sized,
         F: FnMut(Self::Output) -> T,
     {
         Map { prompt: self, map }
@@ -86,6 +92,7 @@ pub trait Promptable: Sized {
 
     fn fmt<F>(self, fmt: F) -> Formatted<Self>
     where
+        Self: Sized,
         Self::FmtRules: From<F>,
     {
         Formatted {
