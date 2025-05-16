@@ -58,6 +58,9 @@ impl<'a> WrittenInner<'a, '_> {
     }
 }
 
+/// Promptable type for written inputs.
+///
+/// See the [`written()`] function for more information.
 pub struct Written<'a, 'fmt, T> {
     inner: WrittenInner<'a, 'fmt>,
     _marker: PhantomData<T>,
@@ -117,7 +120,7 @@ mod tests {
             if default_fmt.break_line { "\n" } else { "" },
             default_fmt.input_prefix
         );
-        assert_eq!(output.as_slice(), expected_msg.as_bytes());
+        assert_eq!(String::from_utf8(output)?, expected_msg);
 
         Ok(())
     }
@@ -137,7 +140,7 @@ mod tests {
             if default_fmt.break_line { "\n" } else { "" },
             default_fmt.input_prefix
         );
-        assert_eq!(output.as_slice(), expected_msg.as_bytes());
+        assert_eq!(String::from_utf8(output)?, expected_msg);
 
         Ok(())
     }
@@ -165,7 +168,7 @@ mod tests {
                 )
             },
         );
-        assert_eq!(output.as_slice(), expected_msg.as_bytes());
+        assert_eq!(String::from_utf8(output)?, expected_msg);
 
         Ok(())
     }
@@ -186,7 +189,7 @@ mod tests {
             .prompt_with(input.as_slice(), &mut output)?;
 
         assert_eq!(res, "hello");
-        assert_eq!(output.as_slice(), b"* booga: ");
+        assert_eq!(String::from_utf8(output)?.as_str(), "* booga: ");
 
         Ok(())
     }
@@ -208,8 +211,8 @@ mod tests {
 
         assert_eq!(res, 2);
         assert_eq!(
-            output.as_slice(),
-            b"* booga: * booga: * booga: * booga: * booga: "
+            String::from_utf8(output)?.as_str(),
+            "* booga: * booga: * booga: * booga: * booga: "
         );
 
         Ok(())

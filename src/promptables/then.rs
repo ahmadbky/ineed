@@ -40,6 +40,9 @@ impl_from_output! {
     (((((((((A, B), C), D), E), F), G), H), I), J) into (A, B, C, D, E, F, G, H, I, J);
 }
 
+/// Wrapper for chaining prompts.
+///
+/// See the [`Promptable::then()`] method for more information.
 pub struct Then<A, B, O> {
     pub(crate) first: A,
     pub(crate) then: B,
@@ -107,4 +110,35 @@ where
     };
 
     Ok(ControlFlow::Break(FromOutput::from_output((a, b))))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn written_then_selected() -> anyhow::Result<()> {
+        let input = "foobar\n2\nyes\n".as_bytes();
+        let (foobar, int, bool) = crate::written::<String>("")
+            .then(crate::selected("", [("", 1000), ("", 2000)]))
+            .then(crate::bool(""))
+            .prompt_with(input, std::io::empty())?;
+
+        assert_eq!((foobar.as_str(), int, bool), ("foobar", 2000, true));
+
+        Ok(())
+    }
+
+    #[test]
+    fn any_invalid_input() -> anyhow::Result<()> {
+        let input = "foobar\n1\ncaca\nfoobar\n5\nno\nfoobar\n1\nno".as_bytes();
+        let (foobar, int, bool) = crate::written::<String>("")
+            .then(crate::selected("", [("", 1000), ("", 2000)]))
+            .then(crate::bool(""))
+            .prompt_with(input, std::io::empty())?;
+
+        assert_eq!((foobar.as_str(), int, bool), ("foobar", 1000, false));
+
+        Ok(())
+    }
 }

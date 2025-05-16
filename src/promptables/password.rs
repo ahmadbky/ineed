@@ -2,6 +2,9 @@ use std::{io, ops::ControlFlow};
 
 use crate::{Promptable, WrittenFmtRules, WrittenInner};
 
+/// Promptable type for passwords.
+///
+/// See the [`password()`] for more information.
 #[cfg(feature = "rpassword")]
 #[cfg_attr(nightly, doc(cfg(feature = "rpassword")))]
 pub struct Password<'a, 'fmt> {

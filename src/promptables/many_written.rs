@@ -2,6 +2,9 @@ use std::{io, marker::PhantomData, ops::ControlFlow, str::FromStr};
 
 use crate::{Promptable, WrittenFmtRules, WrittenInner};
 
+/// Promptable type for many written inputs with different types.
+///
+/// See the [`many_written()`] function for more information.
 pub struct ManyWritten<'a, 'fmt, const N: usize, O> {
     inner: WrittenInner<'a, 'fmt>,
     sep: &'a str,
@@ -108,7 +111,7 @@ where
         let input = self.inner.prompt(read, write, fmt)?;
         let strings: [_; N] = match input
             .split(self.sep)
-            .map(str::to_owned)
+            .map(|s| s.trim().to_owned())
             .collect::<Vec<_>>()
             .try_into()
         {
@@ -119,5 +122,49 @@ where
             Some(out) => Ok(ControlFlow::Break(out)),
             None => Ok(ControlFlow::Continue(())),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn all_good_inputs() -> anyhow::Result<()> {
+        let input = "foo, 1, true\n";
+        let (str, i32, bool): (String, i32, bool) =
+            crate::many_written("msg", ", ").prompt_with(input.as_bytes(), std::io::empty())?;
+
+        assert_eq!(str, "foo");
+        assert_eq!(i32, 1);
+        assert_eq!(bool, true);
+
+        Ok(())
+    }
+
+    #[test]
+    fn trim_inputs() -> anyhow::Result<()> {
+        let input = "foo, 1   ,    true\n";
+        let (str, i32, bool): (String, i32, bool) =
+            crate::many_written("msg", ", ").prompt_with(input.as_bytes(), std::io::empty())?;
+
+        assert_eq!(str, "foo");
+        assert_eq!(i32, 1);
+        assert_eq!(bool, true);
+
+        Ok(())
+    }
+
+    #[test]
+    fn any_invalid_input() -> anyhow::Result<()> {
+        let input = "foo, beg, true\nbar, 1, wow\nboor, 2, false\n";
+        let (str, i32, bool): (String, i32, bool) =
+            crate::many_written("msg", ", ").prompt_with(input.as_bytes(), std::io::empty())?;
+
+        assert_eq!(str, "boor");
+        assert_eq!(i32, 2);
+        assert_eq!(bool, false);
+
+        Ok(())
     }
 }

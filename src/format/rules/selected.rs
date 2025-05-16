@@ -149,7 +149,7 @@ impl ExpandedSelectedFmtRules<'_> {
         input_prefix: ExpandedWrittenFmtRules::DEFAULT.input_prefix,
         break_line: ExpandedWrittenFmtRules::DEFAULT.break_line,
         repeat_prompt: ExpandedWrittenFmtRules::DEFAULT.repeat_prompt,
-        list_surrounds: ("[", "]"),
+        list_surrounds: ("[", "] - "),
         list_msg_pos: Position::Bottom,
     };
 }

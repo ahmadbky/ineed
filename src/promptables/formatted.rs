@@ -2,6 +2,9 @@ use std::{io, ops::ControlFlow};
 
 use crate::{Promptable, format::Mergeable as _};
 
+/// Wrapper for promptable types to customize the prompt format.
+///
+/// See the [`Promptable::fmt()`] method for more information.
 pub struct Formatted<P: Promptable> {
     pub(crate) prompt: P,
     pub(crate) rules: <P as Promptable>::FmtRules,
