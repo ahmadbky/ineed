@@ -1,5 +1,6 @@
-use crate::format::{FmtRule, Mergeable, Unwrappable};
+use crate::format::{Expandable, FmtRule, Mergeable};
 
+#[derive(Default)]
 pub struct ThenFmtRules<A, B> {
     pub a_rules: A,
     pub b_rules: B,
@@ -32,7 +33,7 @@ where
     }
 }
 
-impl<A, B> Unwrappable for ThenFmtRules<A, B> {
-    type Unwrapped = ();
-    fn unwrap(&self) -> Self::Unwrapped {}
+impl<A, B> Expandable for ThenFmtRules<A, B> {
+    type Expanded = ();
+    fn expand(&self) -> Self::Expanded {}
 }

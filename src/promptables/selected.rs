@@ -2,9 +2,12 @@ use std::{io, marker::PhantomData, ops::ControlFlow};
 
 use crate::{
     Promptable,
-    format::{Position, Unwrappable as _, rules::SelectedFmtRules},
+    format::{Expandable as _, Position, rules::SelectedFmtRules},
 };
 
+/// Promptable type for selectable inputs.
+///
+/// See the [`selected()`] function for more information.
 pub struct Selected<'a, 'fmt, const N: usize, T> {
     title: Option<&'a str>,
     msgs: Option<[&'a str; N]>,
@@ -23,7 +26,7 @@ impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
         R: io::BufRead,
         W: io::Write,
     {
-        let fmt = fmt.unwrap();
+        let fmt = fmt.expand();
         let (open, close) = fmt.list_surrounds;
 
         if let Position::Top = fmt.list_msg_pos {
@@ -88,5 +91,30 @@ pub fn selected<'a, 'fmt, const N: usize, T>(
         msgs: Some(msgs),
         values,
         _marker: PhantomData,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn normal_input() -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    #[test]
+    fn repeat_5_times_input() -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    #[test]
+    fn fully_customized_fmt_with_good_input() -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    #[test]
+    fn fully_customized_fmt_with_bad_input() -> anyhow::Result<()> {
+        Ok(())
     }
 }

@@ -1,9 +1,9 @@
 use crate::format::{
-    BreakLine, Fmt, InputPrefix, ListMsgPos, ListSurrounds, Mergeable, MsgPrefix, Position,
-    RepeatPrompt, Unwrappable,
+    BreakLine, Expandable, Fmt, InputPrefix, ListMsgPos, ListSurrounds, Mergeable, MsgPrefix,
+    Position, RepeatPrompt,
 };
 
-use super::UnwrappedWrittenFmtRules;
+use super::ExpandedWrittenFmtRules;
 
 #[derive(Default)]
 pub struct SelectedFmtRules<'a> {
@@ -106,34 +106,35 @@ impl Mergeable for SelectedFmtRules<'_> {
     }
 }
 
-impl<'a> Unwrappable for SelectedFmtRules<'a> {
-    type Unwrapped = UnwrappedSelectedFmtRules<'a>;
+impl<'a> Expandable for SelectedFmtRules<'a> {
+    type Expanded = ExpandedSelectedFmtRules<'a>;
 
-    fn unwrap(&self) -> Self::Unwrapped {
-        Self::Unwrapped {
+    fn expand(&self) -> Self::Expanded {
+        Self::Expanded {
             msg_prefix: self
                 .msg_prefix
-                .unwrap_or(Self::Unwrapped::DEFAULT.msg_prefix),
+                .unwrap_or(Self::Expanded::DEFAULT.msg_prefix),
             input_prefix: self
                 .input_prefix
-                .unwrap_or(Self::Unwrapped::DEFAULT.input_prefix),
+                .unwrap_or(Self::Expanded::DEFAULT.input_prefix),
             break_line: self
                 .break_line
-                .unwrap_or(Self::Unwrapped::DEFAULT.break_line),
+                .unwrap_or(Self::Expanded::DEFAULT.break_line),
             repeat_prompt: self
                 .repeat_prompt
-                .unwrap_or(Self::Unwrapped::DEFAULT.repeat_prompt),
+                .unwrap_or(Self::Expanded::DEFAULT.repeat_prompt),
             list_surrounds: self
                 .list_surrounds
-                .unwrap_or(Self::Unwrapped::DEFAULT.list_surrounds),
+                .unwrap_or(Self::Expanded::DEFAULT.list_surrounds),
             list_msg_pos: self
                 .list_msg_pos
-                .unwrap_or(Self::Unwrapped::DEFAULT.list_msg_pos),
+                .unwrap_or(Self::Expanded::DEFAULT.list_msg_pos),
         }
     }
 }
 
-pub struct UnwrappedSelectedFmtRules<'a> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct ExpandedSelectedFmtRules<'a> {
     pub msg_prefix: &'a str,
     pub input_prefix: &'a str,
     pub break_line: bool,
@@ -142,13 +143,19 @@ pub struct UnwrappedSelectedFmtRules<'a> {
     pub list_msg_pos: Position,
 }
 
-impl UnwrappedSelectedFmtRules<'_> {
+impl ExpandedSelectedFmtRules<'_> {
     pub const DEFAULT: Self = Self {
-        msg_prefix: UnwrappedWrittenFmtRules::DEFAULT.msg_prefix,
-        input_prefix: UnwrappedWrittenFmtRules::DEFAULT.input_prefix,
-        break_line: UnwrappedWrittenFmtRules::DEFAULT.break_line,
-        repeat_prompt: UnwrappedWrittenFmtRules::DEFAULT.repeat_prompt,
+        msg_prefix: ExpandedWrittenFmtRules::DEFAULT.msg_prefix,
+        input_prefix: ExpandedWrittenFmtRules::DEFAULT.input_prefix,
+        break_line: ExpandedWrittenFmtRules::DEFAULT.break_line,
+        repeat_prompt: ExpandedWrittenFmtRules::DEFAULT.repeat_prompt,
         list_surrounds: ("[", "]"),
         list_msg_pos: Position::Bottom,
     };
+}
+
+impl Default for ExpandedSelectedFmtRules<'_> {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
 }

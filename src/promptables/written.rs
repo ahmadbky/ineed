@@ -1,6 +1,6 @@
 use std::{io, marker::PhantomData, ops::ControlFlow, str::FromStr};
 
-use crate::{Promptable, WrittenFmtRules, format::Unwrappable as _};
+use crate::{Promptable, WrittenFmtRules, format::Expandable as _};
 
 pub(crate) struct WrittenInner<'a, 'fmt> {
     msg: Option<&'a str>,
@@ -23,7 +23,7 @@ impl<'a> WrittenInner<'a, '_> {
         W: io::Write,
         F: FnOnce(&mut R) -> io::Result<String>,
     {
-        let fmt = fmt.unwrap();
+        let fmt = fmt.expand();
 
         if let Some(msg) = if fmt.repeat_prompt {
             self.msg
@@ -97,7 +97,7 @@ mod tests {
     use std::io::BufReader;
 
     use crate::{
-        format::{FmtRule, Unwrappable as _, rules::WrittenFmtRules},
+        format::{Expandable as _, FmtRule, rules::WrittenFmtRules},
         prelude::*,
     };
 
@@ -110,7 +110,7 @@ mod tests {
             .prompt_with(BufReader::new(input.as_slice()), &mut output)?;
         assert_eq!(res, "hello");
 
-        let default_fmt = WrittenFmtRules::default().unwrap();
+        let default_fmt = WrittenFmtRules::default().expand();
         let expected_msg = format!(
             "{}foobar{}{}",
             default_fmt.msg_prefix,
@@ -130,7 +130,7 @@ mod tests {
         let res = crate::written::<i32>("foobi").prompt_with(input.as_slice(), &mut output)?;
         assert_eq!(res, 34);
 
-        let default_fmt = WrittenFmtRules::default().unwrap();
+        let default_fmt = WrittenFmtRules::default().expand();
         let expected_msg = format!(
             "{}foobi{}{}",
             default_fmt.msg_prefix,
@@ -150,7 +150,7 @@ mod tests {
         let res = crate::written::<i32>("googa").prompt_with(input.as_slice(), &mut output)?;
         assert_eq!(res, 23);
 
-        let default_fmt = WrittenFmtRules::default().unwrap();
+        let default_fmt = WrittenFmtRules::default().expand();
         let expected_msg = format!(
             "{0}googa{1}{2}{3}{3}{3}{3}",
             default_fmt.msg_prefix,

@@ -1,4 +1,4 @@
-use crate::format::{BreakLine, Fmt, InputPrefix, Mergeable, MsgPrefix, RepeatPrompt, Unwrappable};
+use crate::format::{BreakLine, Expandable, Fmt, InputPrefix, Mergeable, MsgPrefix, RepeatPrompt};
 
 #[derive(Default)]
 pub struct WrittenFmtRules<'a> {
@@ -73,36 +73,36 @@ impl Mergeable for WrittenFmtRules<'_> {
     }
 }
 
-impl<'a> Unwrappable for WrittenFmtRules<'a> {
-    type Unwrapped = UnwrappedWrittenFmtRules<'a>;
+impl<'a> Expandable for WrittenFmtRules<'a> {
+    type Expanded = ExpandedWrittenFmtRules<'a>;
 
-    fn unwrap(&self) -> Self::Unwrapped {
-        Self::Unwrapped {
+    fn expand(&self) -> Self::Expanded {
+        Self::Expanded {
             msg_prefix: self
                 .msg_prefix
-                .unwrap_or(Self::Unwrapped::DEFAULT.msg_prefix),
+                .unwrap_or(Self::Expanded::DEFAULT.msg_prefix),
             input_prefix: self
                 .input_prefix
-                .unwrap_or(Self::Unwrapped::DEFAULT.input_prefix),
+                .unwrap_or(Self::Expanded::DEFAULT.input_prefix),
             break_line: self
                 .break_line
-                .unwrap_or(Self::Unwrapped::DEFAULT.break_line),
+                .unwrap_or(Self::Expanded::DEFAULT.break_line),
             repeat_prompt: self
                 .repeat_prompt
-                .unwrap_or(Self::Unwrapped::DEFAULT.repeat_prompt),
+                .unwrap_or(Self::Expanded::DEFAULT.repeat_prompt),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct UnwrappedWrittenFmtRules<'a> {
+pub struct ExpandedWrittenFmtRules<'a> {
     pub msg_prefix: &'a str,
     pub input_prefix: &'a str,
     pub break_line: bool,
     pub repeat_prompt: bool,
 }
 
-impl UnwrappedWrittenFmtRules<'_> {
+impl ExpandedWrittenFmtRules<'_> {
     pub const DEFAULT: Self = Self {
         msg_prefix: "- ",
         input_prefix: "> ",
@@ -111,7 +111,7 @@ impl UnwrappedWrittenFmtRules<'_> {
     };
 }
 
-impl Default for UnwrappedWrittenFmtRules<'_> {
+impl Default for ExpandedWrittenFmtRules<'_> {
     #[inline(always)]
     fn default() -> Self {
         Self::DEFAULT
