@@ -11,6 +11,26 @@ pub struct ManyWritten<'a, 'fmt, const N: usize, O> {
     _marker: PhantomData<O>,
 }
 
+/// Returns a type that prompts the user for a determined amount of written values.
+///
+/// These values must be separated by the provided separator, and may have different types,
+/// so the output type is a tuple that you must specify when calling the method.
+///
+/// There is a similar promptable: [`separated`](crate::separated). The difference is that the
+/// separated promptable asks for any number of written values, but they must have the same type.
+///
+/// # Example
+///
+/// The below example shows how to basically use this function.
+///
+/// ```no_run
+/// # use ineed::prelude::*;
+/// let (name, age): (String, i32) = ineed::many_written("Name, age", ",").prompt().unwrap();
+/// ```
+///
+/// Please notice how the output type (i.e. `(String, i32)`) was explictly specified.
+/// This is because we need to determine at compile-time the amount of values to retrieve (the `N`
+/// const generic parameter), and the types to parse into.
 pub fn many_written<'a, 'fmt, O, const N: usize>(
     msg: &'a str, sep: &'a str,
 ) -> ManyWritten<'a, 'fmt, N, O> {
@@ -50,6 +70,13 @@ impl_tup_to_strings! {
 }
 
 /// Used to parse a tuple of strings into a tuple of concrete types.
+///
+/// This trait is used as a bound for the output type of the [`ManyWritten`] promptable type.
+#[diagnostic::on_unimplemented(
+    message = "Couldn't determine the output type",
+    label = "the output type must be determined from here",
+    note = "try to clarify the output type of the binding, e.g. with `let x: (_, _, ...) = ...;`"
+)]
 trait TryFromOutput<Output> {
     fn try_from_output(output: Output) -> Option<Self>
     where

@@ -9,8 +9,7 @@ use crate::{Promptable, format::rules::ThenFmtRules};
 #[diagnostic::on_unimplemented(
     message = "Couldn't determine the output type",
     label = "the output type must be determined from here",
-    note = "try to use the tuple destructuring syntax for the \
-    related binding, e.g. with `let (a, b, ...) = ...`",
+    note = "try to use tuple destructuring syntax for the binding, e.g. with `let (a, b, ...) = ...`",
     note = "or clarify the output type of the binding, e.g. with `let x: {Output} = ...`"
 )]
 pub trait FromOutput<Output> {

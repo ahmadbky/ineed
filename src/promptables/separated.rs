@@ -39,6 +39,21 @@ where
     }
 }
 
+/// Returns a type that prompts the user for an indeterminate amount of written values.
+///
+/// These values must be separated by the provided separator, and they're all of type `T`.
+/// The output type is `I`, which stands for **I**terable as it can be any type that implements
+/// [`FromIterator<T>`].
+///
+/// # Example
+///
+/// ```no_run
+/// # use ineed::prelude::*;
+/// let grades = ineed::separated("Your grades, separated by ';'", ";")
+///   .until(|grades: &Vec<u8>| grades.iter().all(|g| *g >= 0 && *g <= 20))
+///   .prompt()
+///   .unwrap();
+/// ```
 pub fn separated<'a, 'fmt, I, T>(msg: &'a str, sep: &'a str) -> Separated<'a, 'fmt, I, T> {
     Separated {
         inner: WrittenInner::new(msg),

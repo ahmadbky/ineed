@@ -7,7 +7,7 @@ license = "MIT"
 description = "CLI prompting library"
 keywords = ["cli", "terminal", "utility", "tool"]
 categories = ["command-line-utilities", "command-line-interface"]
-exclude = ["target", "Cargo.lock", "examples"]
+exclude = ["target", "Cargo.lock"]
 repository = "https://github.com/ahmadbky/ineed"
 documentation = "https://docs.rs/ineed"
 
@@ -30,3 +30,8 @@ rpassword = ["dep:rpassword"]
 
 [package.metadata.docs.rs]
 all-features = true
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
+
+[[example]]
+name = "simple"
+doc-scrape-examples = true

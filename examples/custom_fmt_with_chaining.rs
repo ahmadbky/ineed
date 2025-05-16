@@ -3,7 +3,7 @@
 //! The accepted format rules for the chain is the intersection of the accepted format rules
 //! of every prompt it contains. For example, if we're prompting the chain C = A + B, and the prompt
 //! A accepts the rules [msg_prefix, input_prefix], and B accepts the rules [msg_prefix, repeat_prompt],
-//! C will accept the rules [msg_prefix].
+//! C will accept the rules \[msg_prefix].
 //!
 //! You can still customize each prompt more specifically. For example, by doing
 //! `ineed::written(...).fmt(...).then(...)` instead of `ineed::written(...).then(...).fmt(...)`.
@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
     let (name, level) = ineed::written::<String>("Your name")
         .then(
             ineed::selected(
-                "Your age",
+                "Your level",
                 [
                     ("Good", Level::Good),
                     ("Medium", Level::Medium),

@@ -76,6 +76,73 @@ impl<'fmt, const N: usize, T> Promptable for Selected<'_, 'fmt, N, T> {
     }
 }
 
+/// Returns a type that prompts the user a selectable value.
+///
+/// The values are presented as an indexed list. The user must enter the index of an item in the
+/// list to select it. The output is the value bound to this index.
+///
+/// The promptable checks for each try that the input is an index, and checks that the index
+/// is in bound.
+///
+/// # Example
+///
+/// ```no_run
+/// # use ineed::prelude::*;
+/// enum Level {
+///   High,
+///   Mid,
+///   Low,
+/// }
+///
+/// let list = [
+///   ("High level", Level::High),
+///   ("Mid level", Level::Mid),
+///   ("Low level", Level::Low),
+/// ];
+///
+/// let level = ineed::selected("Your level", list).prompt().unwrap();
+/// ```
+///
+/// The above example will show something similar to this:
+/// ```txt
+/// [1] - High level
+/// [2] - Mid level
+/// [3] - Low level
+/// - Your level
+/// >
+/// ```
+///
+/// # Format customization
+///
+/// You can customize the format of the prompt (taking the previous example):
+///
+/// ```no_run
+/// # use ineed::prelude::*;
+/// # enum Level { High, Mid, Low }
+/// # let list = [("High level", Level::High),("Mid level",Level::Mid),("Low level",Level::Low)];
+/// let level = ineed::selected("Your level", list)
+///   .fmt(
+///     ineed::fmt()
+///       .list_surrounds("<", "> ")
+///       .input_prefix(": ")
+///       .repeat_prompt(true)
+///       .break_line(false)
+///   )
+///   .prompt()
+///   .unwrap();
+/// ```
+///
+/// This will show something similar to this:
+/// ```txt
+/// <1> High level
+/// <2> Mid level
+/// <3> Low level
+/// - Your level:
+/// ```
+///
+/// See the [`format`](crate::format) module documentation for more information,
+/// and the [`ExpandedSelectedFmtRules`](crate::format::rules::ExpandedSelectedFmtRules) struct
+/// to see all the supported format rules.
 pub fn selected<'a, 'fmt, const N: usize, T>(
     title: &'a str, list: [(&'a str, T); N],
 ) -> Selected<'a, 'fmt, N, T> {

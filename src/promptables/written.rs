@@ -66,6 +66,58 @@ pub struct Written<'a, 'fmt, T> {
     _marker: PhantomData<T>,
 }
 
+/// Returns a type that prompts the user for a written input.
+///
+/// The output value is of type `T`, which must implement [`FromStr`].
+///
+/// The promptable checks for each try that the entered text is valid, meaning [`FromStr::from_str`]
+/// returned `Ok(_)`.
+///
+/// # Example
+///
+/// ```no_run
+/// # use ineed::prelude::*;
+/// let age = ineed::written::<u8>("Your age").prompt().unwrap();
+/// ```
+///
+/// The above example will continue to prompt the user until they give a valid `u8` value. This is
+/// an example of output (with some tries from the user):
+/// ```txt
+/// - Your age
+/// > no
+/// > foobar
+/// > 3
+/// ```
+///
+/// So the binding `age` would value `3`.
+///
+/// # Format customization
+///
+/// You can customize the format of the prompt:
+///
+/// ```no_run
+/// # use ineed::prelude::*;
+/// let age = ineed::written::<u8>("Your age")
+///   .fmt(
+///     ineed::fmt()
+///       .break_line(false)
+///       .input_prefix(": ")
+///       .repeat_prompt(true)
+///   )
+///   .prompt()
+///   .unwrap();
+/// ```
+///
+/// Let's take the same example of tries from the user above, the display would be like this:
+/// ```txt
+/// - Your age: no
+/// - Your age: foobar
+/// - Your age: 3
+/// ```
+///
+/// See the [`format`](crate::format) module documentation for more information,
+/// and the [`ExpandedWrittenFmtRules`](crate::format::rules::ExpandedWrittenFmtRules) struct
+/// to see all the supported format rules.
 pub fn written<T>(msg: &str) -> Written<'_, '_, T> {
     Written {
         inner: WrittenInner::new(msg),
@@ -100,7 +152,7 @@ mod tests {
     use std::io::BufReader;
 
     use crate::{
-        format::{Partial as _, FmtRule, rules::WrittenFmtRules},
+        format::{FmtRule, Partial as _, rules::WrittenFmtRules},
         prelude::*,
     };
 

@@ -9,6 +9,9 @@ pub struct Bool<'a, 'fmt> {
     inner: WrittenInner<'a, 'fmt>,
 }
 
+/// Returns a type that prompts the user for a boolean value, in a natural way.
+///
+/// Natural way means answering by "yes" or "no" for example.
 pub fn bool(msg: &str) -> Bool<'_, '_> {
     Bool {
         inner: WrittenInner::new(msg),
@@ -16,7 +19,7 @@ pub fn bool(msg: &str) -> Bool<'_, '_> {
 }
 
 const TRUE_INPUTS: &[&str] = &["y", "ye", "yes", "yep", "true"];
-const FALSE_INPUTS: &[&str] = &["n", "no", "nop", "nope", "nopp", "nah", "false"];
+const FALSE_INPUTS: &[&str] = &["n", "no", "nop", "nope", "nopp", "na", "nah", "false"];
 
 impl<'fmt> Promptable for Bool<'_, 'fmt> {
     type Output = bool;

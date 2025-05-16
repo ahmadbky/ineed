@@ -11,6 +11,9 @@ pub struct Password<'a, 'fmt> {
     inner: WrittenInner<'a, 'fmt>,
 }
 
+/// Returns a type that prompts a password to the user.
+///
+/// The password prompt uses the [`rpassword`] crate, and it ignores the input stream.
 #[cfg(feature = "rpassword")]
 #[cfg_attr(nightly, doc(cfg(feature = "rpassword")))]
 pub fn password(msg: &str) -> Password<'_, '_> {
