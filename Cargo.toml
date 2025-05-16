@@ -7,7 +7,7 @@ license = "MIT"
 description = "CLI prompting library"
 keywords = ["cli", "terminal", "utility", "tool"]
 categories = ["command-line-utilities", "command-line-interface"]
-exclude = ["target", "Cargo.lock"]
+exclude = ["target", "Cargo.lock", "examples"]
 repository = "https://github.com/ahmadbky/ineed"
 documentation = "https://docs.rs/ineed"
 
