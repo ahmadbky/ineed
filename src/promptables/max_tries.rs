@@ -11,8 +11,11 @@ pub struct MaxTries<P> {
     pub(crate) max: usize,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct MaxTriesExceeded;
+/// Raised when the user exceeded the maximum amount of tries.
+///
+/// See [`Promptable::max_tries`] for more information.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct MaxTriesExceeded(pub(crate) ());
 
 impl<P> Promptable for MaxTries<P>
 where
@@ -30,7 +33,7 @@ where
     {
         self.current += 1;
         if self.current > self.max {
-            return Ok(ControlFlow::Break(Err(MaxTriesExceeded)));
+            return Ok(ControlFlow::Break(Err(MaxTriesExceeded(()))));
         }
 
         self.prompt
@@ -71,7 +74,7 @@ mod tests {
         let res = crate::written::<i32>("foo")
             .max_tries(3)
             .prompt_with("nop\na\noo\n6".as_bytes(), std::io::empty())?;
-        assert_eq!(res, Err(crate::MaxTriesExceeded));
+        assert_eq!(res, Err(crate::MaxTriesExceeded(())));
 
         Ok(())
     }

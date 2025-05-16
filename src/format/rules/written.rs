@@ -1,5 +1,10 @@
-use crate::format::{BreakLine, Expandable, Fmt, InputPrefix, Mergeable, MsgPrefix, RepeatPrompt};
+use crate::format::{
+    BreakLine, ConstDefault, Fmt, InputPrefix, Mergeable, MsgPrefix, Partial, RepeatPrompt,
+};
 
+/// The set of rules accepted by written prompts (e.g. with [`written`](crate::written), etc).
+///
+/// See the [module documentation](crate::format) for more information.
 #[derive(Default)]
 pub struct WrittenFmtRules<'a> {
     msg_prefix: Option<&'a str>,
@@ -73,7 +78,7 @@ impl Mergeable for WrittenFmtRules<'_> {
     }
 }
 
-impl<'a> Expandable for WrittenFmtRules<'a> {
+impl<'a> Partial for WrittenFmtRules<'a> {
     type Expanded = ExpandedWrittenFmtRules<'a>;
 
     fn expand(&self) -> Self::Expanded {
@@ -94,16 +99,22 @@ impl<'a> Expandable for WrittenFmtRules<'a> {
     }
 }
 
+/// Expanded version of [`WrittenFmtRules`].
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExpandedWrittenFmtRules<'a> {
+    /// The message prefix, that is put right before the message.
     pub msg_prefix: &'a str,
+    /// The input prefix, that is put right before the user input.
     pub input_prefix: &'a str,
+    /// Whether to break the line after the message or not.
     pub break_line: bool,
+    /// Whether to repeat the message, along with its prefix and the input prefix,
+    /// if the previous input is invalid. If not, only the input prefix is repeated.
     pub repeat_prompt: bool,
 }
 
-impl ExpandedWrittenFmtRules<'_> {
-    pub const DEFAULT: Self = Self {
+impl ConstDefault for ExpandedWrittenFmtRules<'_> {
+    const DEFAULT: Self = Self {
         msg_prefix: "- ",
         input_prefix: "> ",
         break_line: true,

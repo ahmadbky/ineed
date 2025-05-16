@@ -1,10 +1,13 @@
 use crate::format::{
-    BreakLine, Expandable, Fmt, InputPrefix, ListMsgPos, ListSurrounds, Mergeable, MsgPrefix,
-    Position, RepeatPrompt,
+    BreakLine, ConstDefault, Fmt, InputPrefix, ListMsgPos, ListSurrounds, Mergeable, MsgPrefix,
+    Partial, Position, RepeatPrompt,
 };
 
 use super::ExpandedWrittenFmtRules;
 
+/// The set of rules accepted by selectable prompts (e.g. [`selected`](crate::selected)).
+///
+/// See the [module documentation](crate::format) for more information.
 #[derive(Default)]
 pub struct SelectedFmtRules<'a> {
     msg_prefix: Option<&'a str>,
@@ -106,7 +109,7 @@ impl Mergeable for SelectedFmtRules<'_> {
     }
 }
 
-impl<'a> Expandable for SelectedFmtRules<'a> {
+impl<'a> Partial for SelectedFmtRules<'a> {
     type Expanded = ExpandedSelectedFmtRules<'a>;
 
     fn expand(&self) -> Self::Expanded {
@@ -133,18 +136,26 @@ impl<'a> Expandable for SelectedFmtRules<'a> {
     }
 }
 
+/// The expanded version of [`SelectedFmtRules`].
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExpandedSelectedFmtRules<'a> {
+    /// The message prefix, that is put right before the message.
     pub msg_prefix: &'a str,
+    /// The input prefix, that is put right before the user input.
     pub input_prefix: &'a str,
+    /// Whether to break the line after the message or not.
     pub break_line: bool,
+    /// Whether to repeat the message, along with its prefix and the input prefix,
+    /// if the previous input is invalid. If not, only the input prefix is repeated.
     pub repeat_prompt: bool,
+    /// The surrounds of each list item index.
     pub list_surrounds: (&'a str, &'a str),
+    /// The position of the message.
     pub list_msg_pos: Position,
 }
 
-impl ExpandedSelectedFmtRules<'_> {
-    pub const DEFAULT: Self = Self {
+impl ConstDefault for ExpandedSelectedFmtRules<'_> {
+    const DEFAULT: Self = Self {
         msg_prefix: ExpandedWrittenFmtRules::DEFAULT.msg_prefix,
         input_prefix: ExpandedWrittenFmtRules::DEFAULT.input_prefix,
         break_line: ExpandedWrittenFmtRules::DEFAULT.break_line,

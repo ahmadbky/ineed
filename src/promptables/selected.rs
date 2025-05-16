@@ -2,7 +2,7 @@ use std::{io, marker::PhantomData, ops::ControlFlow};
 
 use crate::{
     Promptable,
-    format::{Expandable as _, Position, rules::SelectedFmtRules},
+    format::{Partial as _, Position, rules::SelectedFmtRules},
 };
 
 /// Promptable type for selectable inputs.
@@ -101,7 +101,7 @@ pub fn selected<'a, 'fmt, const N: usize, T>(
 #[cfg(test)]
 mod tests {
     use crate::{
-        format::{Expandable, Position, rules::SelectedFmtRules},
+        format::{Partial, Position, rules::SelectedFmtRules},
         prelude::*,
     };
 

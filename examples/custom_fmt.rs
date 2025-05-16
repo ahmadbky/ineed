@@ -5,8 +5,7 @@
 //! However, you can't provide a custom position for the message, as this rule is specific for
 //! [selectable](ineed::selected) prompts.
 //!
-//! You can find these specifications in the documentation of the various
-//! [rule types](ineed::format::rules).
+//! You can find more about this [here](ineed::format).
 
 use ineed::prelude::*;
 

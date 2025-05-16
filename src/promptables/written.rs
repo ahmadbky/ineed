@@ -1,6 +1,6 @@
 use std::{io, marker::PhantomData, ops::ControlFlow, str::FromStr};
 
-use crate::{Promptable, WrittenFmtRules, format::Expandable as _};
+use crate::{Promptable, WrittenFmtRules, format::Partial as _};
 
 pub(crate) struct WrittenInner<'a, 'fmt> {
     msg: Option<&'a str>,
@@ -100,7 +100,7 @@ mod tests {
     use std::io::BufReader;
 
     use crate::{
-        format::{Expandable as _, FmtRule, rules::WrittenFmtRules},
+        format::{Partial as _, FmtRule, rules::WrittenFmtRules},
         prelude::*,
     };
 

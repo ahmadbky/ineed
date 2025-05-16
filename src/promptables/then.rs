@@ -2,10 +2,23 @@ use std::{io, marker::PhantomData, ops::ControlFlow};
 
 use crate::{Promptable, format::rules::ThenFmtRules};
 
+/// Used to convert a raw output into a proper output.
+///
+/// This is used as a bound for the output type of the [`Then`] promptable type, in conjunction with
+/// the [`Flattenable`] trait.
+#[diagnostic::on_unimplemented(
+    message = "Couldn't determine the output type",
+    label = "the output type must be determined from here",
+    note = "try to use the tuple destructuring syntax for the \
+    related binding, e.g. with `let (a, b, ...) = ...`",
+    note = "or clarify the output type of the binding, e.g. with `let x: {Output} = ...`"
+)]
 pub trait FromOutput<Output> {
+    /// Converts the raw output into this type.
     fn from_output(output: Output) -> Self;
 }
 
+#[diagnostic::do_not_recommend]
 impl<T> FromOutput<T> for T {
     fn from_output(output: T) -> Self {
         output
@@ -18,6 +31,7 @@ macro_rules! impl_from_output {
     )*) => {$(
         const _: () = {
             #[automatically_derived]
+            #[diagnostic::do_not_recommend]
             impl<$($Into)*> FromOutput<($($From)*)> for ($($Into)*) {
                 #[allow(non_snake_case)]
                 #[inline(always)]
@@ -49,7 +63,12 @@ pub struct Then<A, B, O> {
     pub(crate) _marker: PhantomData<O>,
 }
 
+/// Represents promptable types that have an output type that is flattenable.
+///
+/// This is mostly used by the [`Then`] promptable type, as its raw output is nested couples
+/// (e.g. `(((A, B), C), D)`), so we convert them into `(A, B, C, D)` for more convenience.
 pub trait Flattenable {
+    /// The raw output type (e.g. `(((A, B), C), D)`).
     type RawOutput;
 }
 
