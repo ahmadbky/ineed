@@ -50,7 +50,10 @@ jobs:
         run: rustup component add clippy
 
       - name: Clippy without features
-        run: |
-          RUST_BACKTRACE=1 cargo clippy --no-default-features -- -D warnings
-          RUST_BACKTRACE=1 cargo clippy -- -D warnings
-          RUST_BACKTRACE=1 cargo clippy --all-features -- -D warnings
+        run: RUST_BACKTRACE=1 cargo clippy --no-default-features -- -D warnings
+
+      - name: Clippy with default features
+        run: RUST_BACKTRACE=1 cargo clippy -- -D warnings
+
+      - name: Clippy with all features
+        run: RUST_BACKTRACE=1 cargo clippy --all-features -- -D warnings
