@@ -1,6 +1,6 @@
 # ineed
 
-[![](https://img.shields.io/crates/v/ineed?style=flat-square)](https://crates.io/crates/ineed) ![](https://img.shields.io/docsrs/ineed?style=flat-square)
+[![](https://img.shields.io/crates/v/ineed?style=flat-square)](https://crates.io/crates/ineed) [![](https://img.shields.io/docsrs/ineed?style=flat-square)](https://docs.rs/ineed)
 
 `ineed` is a lightweight CLI prompting Rust crate.
 
