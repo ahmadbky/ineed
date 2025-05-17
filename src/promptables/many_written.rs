@@ -44,7 +44,7 @@ pub fn many_written<'a, 'fmt, O, const N: usize>(
 /// Used to associate a tuple of concrete types into a tuple of strings.
 /// `N` is the amount of types the tuples contain.
 trait TupToStrings<const N: usize> {
-    type StringsTup;
+    type StringsTup<'a>;
 }
 
 macro_rules! impl_tup_to_strings {
@@ -52,13 +52,17 @@ macro_rules! impl_tup_to_strings {
 
     ($Head:ident: $head_num:literal, $($Tail:ident: $tail_num:literal),*) => {
         impl_tup_to_strings!($($Tail: $tail_num),*);
+        #[automatically_derived]
+        #[diagnostic::do_not_recommend]
         impl<$Head, $($Tail),*> TupToStrings<{ $head_num $(+$tail_num)* }> for ($Head, $($Tail),*) {
-            type StringsTup = (String, $(<$Tail as StringType>::String),*);
+            type StringsTup<'a> = (&'a str, $(<$Tail as StringType>::String<'a>),*);
         }
     };
 
     ($Head:ident, $($Tail:ident),*) => {
-        impl_tup_to_strings!($Head:1, $($Tail:1),*);
+        const _: () = {
+            impl_tup_to_strings!($Head:1, $($Tail:1),*);
+        };
     }
 }
 
@@ -85,34 +89,38 @@ trait TryFromOutput<Output> {
 
 /// Used for the `impl_try_from_output` macro expansion, to repeat the String type mention in tuples.
 trait StringType {
-    type String;
+    type String<'a>;
 }
 
 impl<T> StringType for T {
-    type String = String;
+    type String<'a> = &'a str;
 }
 
 macro_rules! impl_try_from_output {
-    ($_Single:ident) => {};
+    (@__impl $_Single:ident) => {};
+
+    (@__impl $Head:ident, $($Tail:ident),*) => {
+        impl_try_from_output!(@__impl $($Tail),*);
+        #[automatically_derived]
+        #[diagnostic::do_not_recommend]
+        impl<$Head, $($Tail),*> TryFromOutput<(&str, $(<$Tail as StringType>::String<'_>),*)> for ($Head, $($Tail),*)
+        where
+            $Head: FromStr,
+            $($Tail: FromStr),*
+        {
+            #[allow(non_snake_case)]
+            fn try_from_output(($Head, $($Tail),*): (&str, $(<$Tail as StringType>::String<'_>),*)) -> Option<Self> {
+                Some((
+                    $Head.parse().ok()?,
+                    $($Tail.parse().ok()?),*
+                ))
+            }
+        }
+    };
 
     ($Head:ident, $($Tail:ident),*) => {
         const _: () = {
-            impl_try_from_output!($($Tail),*);
-            #[automatically_derived]
-            #[diagnostic::do_not_recommend]
-            impl<$Head, $($Tail),*> TryFromOutput<(String, $(<$Tail as StringType>::String),*)> for ($Head, $($Tail),*)
-            where
-                $Head: FromStr,
-                $($Tail: FromStr),*
-            {
-                #[allow(non_snake_case)]
-                fn try_from_output(($Head, $($Tail),*): (String, $(<$Tail as StringType>::String),*)) -> Option<Self> {
-                    Some((
-                        $Head.parse().ok()?,
-                        $($Tail.parse().ok()?),*
-                    ))
-                }
-            }
+            impl_try_from_output!(@__impl $Head, $($Tail),*);
         };
     };
 }
@@ -126,8 +134,8 @@ impl_try_from_output! {
 
 impl<'fmt, const N: usize, O> Promptable for ManyWritten<'_, 'fmt, N, O>
 where
-    O: TupToStrings<N> + TryFromOutput<<O as TupToStrings<N>>::StringsTup>,
-    <O as TupToStrings<N>>::StringsTup: From<[String; N]>,
+    O: TupToStrings<N> + for<'a> TryFromOutput<<O as TupToStrings<N>>::StringsTup<'a>>,
+    for<'a> <O as TupToStrings<N>>::StringsTup<'a>: From<[&'a str; N]>,
 {
     type Output = O;
     type FmtRules = WrittenFmtRules<'fmt>;
@@ -142,7 +150,7 @@ where
         let input = self.inner.prompt(read, write, fmt)?;
         let strings: [_; N] = match input
             .split(self.sep)
-            .map(|s| s.trim().to_owned())
+            .map(|s| s.trim())
             .collect::<Vec<_>>()
             .try_into()
         {
