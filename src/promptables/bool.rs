@@ -12,6 +12,8 @@ pub struct Bool<'a, 'fmt> {
 /// Returns a type that prompts the user for a boolean value, in a natural way.
 ///
 /// Natural way means answering by "yes" or "no" for example.
+///
+/// It is similar to the [`written`](crate::written) promptable.
 pub fn bool(msg: &str) -> Bool<'_, '_> {
     Bool {
         inner: WrittenInner::new(msg),

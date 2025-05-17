@@ -14,6 +14,8 @@ pub struct Password<'a, 'fmt> {
 /// Returns a type that prompts a password to the user.
 ///
 /// The password prompt uses the [`rpassword`] crate, and it ignores the input stream.
+///
+/// It is similar to the [`written`](crate::written) promptable.
 #[cfg(feature = "rpassword")]
 #[cfg_attr(nightly, doc(cfg(feature = "rpassword")))]
 pub fn password(msg: &str) -> Password<'_, '_> {

@@ -43,8 +43,8 @@ pub fn many_written<'a, 'fmt, O, const N: usize>(
 
 /// Used to associate a tuple of concrete types into a tuple of strings.
 /// `N` is the amount of types the tuples contain.
-trait TupToStrings<const N: usize> {
-    type StringsTup<'a>;
+trait StrTuple<const N: usize> {
+    type StrTuple<'a>;
 }
 
 macro_rules! impl_tup_to_strings {
@@ -54,8 +54,8 @@ macro_rules! impl_tup_to_strings {
         impl_tup_to_strings!($($Tail: $tail_num),*);
         #[automatically_derived]
         #[diagnostic::do_not_recommend]
-        impl<$Head, $($Tail),*> TupToStrings<{ $head_num $(+$tail_num)* }> for ($Head, $($Tail),*) {
-            type StringsTup<'a> = (&'a str, $(<$Tail as StringType>::String<'a>),*);
+        impl<$Head, $($Tail),*> StrTuple<{ $head_num $(+$tail_num)* }> for ($Head, $($Tail),*) {
+            type StrTuple<'a> = (&'a str, $(<$Tail as StrType>::Str<'a>),*);
         }
     };
 
@@ -88,12 +88,12 @@ trait TryFromOutput<Output> {
 }
 
 /// Used for the `impl_try_from_output` macro expansion, to repeat the String type mention in tuples.
-trait StringType {
-    type String<'a>;
+trait StrType {
+    type Str<'a>;
 }
 
-impl<T> StringType for T {
-    type String<'a> = &'a str;
+impl<T> StrType for T {
+    type Str<'a> = &'a str;
 }
 
 macro_rules! impl_try_from_output {
@@ -103,13 +103,13 @@ macro_rules! impl_try_from_output {
         impl_try_from_output!(@__impl $($Tail),*);
         #[automatically_derived]
         #[diagnostic::do_not_recommend]
-        impl<$Head, $($Tail),*> TryFromOutput<(&str, $(<$Tail as StringType>::String<'_>),*)> for ($Head, $($Tail),*)
+        impl<$Head, $($Tail),*> TryFromOutput<(&str, $(<$Tail as StrType>::Str<'_>),*)> for ($Head, $($Tail),*)
         where
             $Head: FromStr,
             $($Tail: FromStr),*
         {
             #[allow(non_snake_case)]
-            fn try_from_output(($Head, $($Tail),*): (&str, $(<$Tail as StringType>::String<'_>),*)) -> Option<Self> {
+            fn try_from_output(($Head, $($Tail),*): (&str, $(<$Tail as StrType>::Str<'_>),*)) -> Option<Self> {
                 Some((
                     $Head.parse().ok()?,
                     $($Tail.parse().ok()?),*
@@ -134,8 +134,8 @@ impl_try_from_output! {
 
 impl<'fmt, const N: usize, O> Promptable for ManyWritten<'_, 'fmt, N, O>
 where
-    O: TupToStrings<N> + for<'a> TryFromOutput<<O as TupToStrings<N>>::StringsTup<'a>>,
-    for<'a> <O as TupToStrings<N>>::StringsTup<'a>: From<[&'a str; N]>,
+    O: StrTuple<N> + for<'a> TryFromOutput<<O as StrTuple<N>>::StrTuple<'a>>,
+    for<'a> <O as StrTuple<N>>::StrTuple<'a>: From<[&'a str; N]>,
 {
     type Output = O;
     type FmtRules = WrittenFmtRules<'fmt>;
