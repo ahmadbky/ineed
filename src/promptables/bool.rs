@@ -34,8 +34,8 @@ impl<'fmt> Promptable for Bool<'_, 'fmt> {
     {
         let input = self.inner.prompt(read, write, fmt)?.trim().to_lowercase();
         Ok(match () {
-            _ if TRUE_INPUTS.iter().any(|s| input.as_str() == *s) => ControlFlow::Break(true),
-            _ if FALSE_INPUTS.iter().any(|s| input.as_str() == *s) => ControlFlow::Break(false),
+            _ if TRUE_INPUTS.contains(&input.as_str()) => ControlFlow::Break(true),
+            _ if FALSE_INPUTS.contains(&input.as_str()) => ControlFlow::Break(false),
             _ => ControlFlow::Continue(()),
         })
     }

@@ -1,0 +1,55 @@
+name: Rust
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.87.0
+
+      - name: Configure cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Test without features
+        run: |
+          RUST_BACKTRACE=1 cargo test --lib --no-default-features
+          RUST_BACKTRACE=1 cargo test --doc --no-default-features
+
+      - name: Test with default features
+        run: |
+          RUST_BACKTRACE=1 cargo test --lib
+          RUST_BACKTRACE=1 cargo test --doc
+
+      - name: Test with all features
+        run: RUST_BACKTRACE=1 cargo test --all-features
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.87.0
+
+      - name: Setup Clippy
+        run: rustup component add clippy
+
+      - name: Clippy without features
+        run: |
+          RUST_BACKTRACE=1 cargo clippy --no-default-features -- -D warnings
+          RUST_BACKTRACE=1 cargo clippy -- -D warnings
+          RUST_BACKTRACE=1 cargo clippy --all-features -- -D warnings
