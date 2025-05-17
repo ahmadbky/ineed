@@ -99,4 +99,4 @@ cargo add ineed -F rpassword
 
 which will give you access to the [`ineed::password`](https://docs.rs/ineed/latest/ineed/fn.password.html) promptable.
 
-You can find more examples in the [examples folder](examples/) folder.
+You can find more examples in the [examples folder](examples/).
