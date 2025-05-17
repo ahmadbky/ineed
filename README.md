@@ -8,13 +8,13 @@ It provides utility traits and types to prompt values in a more convenient way, 
 
 ## Usage
 
-First, add the crate to your dependency:
+First, add the crate to your dependencies:
 ```
 cargo add ineed
 ```
 
 Then, add this line at the beginning of your code:
-```
+```rust
 use ineed::prelude::*;
 ```
 
