@@ -17,7 +17,7 @@ pub struct ManyWritten<'a, 'fmt, const N: usize, O> {
 /// so the output type is a tuple that you must specify when calling the method.
 ///
 /// There is a similar promptable: [`separated`](crate::separated). The difference is that the
-/// separated promptable asks for any number of written values, but they must have the same type.
+/// `separated` promptable asks for any number of written values, but they must have the same type.
 ///
 /// # Example
 ///
@@ -96,20 +96,24 @@ macro_rules! impl_try_from_output {
     ($_Single:ident) => {};
 
     ($Head:ident, $($Tail:ident),*) => {
-        impl_try_from_output!($($Tail),*);
-        impl<$Head, $($Tail),*> TryFromOutput<(String, $(<$Tail as StringType>::String),*)> for ($Head, $($Tail),*)
-        where
-            $Head: FromStr,
-            $($Tail: FromStr),*
-        {
-            #[allow(non_snake_case)]
-            fn try_from_output(($Head, $($Tail),*): (String, $(<$Tail as StringType>::String),*)) -> Option<Self> {
-                Some((
-                    $Head.parse().ok()?,
-                    $($Tail.parse().ok()?),*
-                ))
+        const _: () = {
+            impl_try_from_output!($($Tail),*);
+            #[automatically_derived]
+            #[diagnostic::do_not_recommend]
+            impl<$Head, $($Tail),*> TryFromOutput<(String, $(<$Tail as StringType>::String),*)> for ($Head, $($Tail),*)
+            where
+                $Head: FromStr,
+                $($Tail: FromStr),*
+            {
+                #[allow(non_snake_case)]
+                fn try_from_output(($Head, $($Tail),*): (String, $(<$Tail as StringType>::String),*)) -> Option<Self> {
+                    Some((
+                        $Head.parse().ok()?,
+                        $($Tail.parse().ok()?),*
+                    ))
+                }
             }
-        }
+        };
     };
 }
 

@@ -45,6 +45,9 @@ where
 /// The output type is `I`, which stands for **I**terable as it can be any type that implements
 /// [`FromIterator<T>`].
 ///
+/// There is a similar promptable: [`many_written`](crate::many_written). The difference is that the
+/// `many_written` promptable asks for a determined amount of values, which may have different types.
+///
 /// # Example
 ///
 /// ```no_run

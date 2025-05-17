@@ -1,4 +1,66 @@
 //! CLI prompting library.
+//!
+//! This crate provides utility traits and types to prompt values from the user in a CLI, in a more
+//! convenient way. It also allows you to customize the style of the prompts.
+//!
+//! For example, you can ask the user for a [written] value:
+//!
+//! ```no_run
+//! # use ineed::prelude::*;
+//! let age = ineed::written::<u8>("How old are you?").prompt().unwrap();
+//! ```
+//!
+//! When running this instruction, it will print something similar to this:
+//!
+//! ```txt
+//! - How old are you?
+//! >
+//! ```
+//!
+//! If the user enters an invalid input, the prompt is repeated.
+//!
+//! You can customize the prompt's [mod@format]:
+//!
+//! ```no_run
+//! # use ineed::prelude::*;
+//! let age = ineed::written::<u8>("How old are you?")
+//!   .fmt(ineed::fmt().input_prefix(">> ").msg_prefix("-> "))
+//!   .prompt()
+//!   .unwrap();
+//! ```
+//!
+//! Which will print:
+//!
+//! ```txt
+//! -> How old are you?
+//! >>
+//! ```
+//!
+//! There are a lot of other promptable types: [selected] prompt, [password], [boolean](bool()) values,
+//! etc. All the promptable types implement the [`Promptable`] trait, and support their own set of
+//! custom format rules.
+//!
+//! There are also promptable wrappers, with the same design as Rust's iterator combination pattern.
+//! For example, you can filter the output of a prompt, map the result into another value, and chain
+//! it with another prompt:
+//!
+//! ```no_run
+//! # use ineed::prelude::*;
+//! enum Age {
+//!   Minor,
+//!   LegalAge,
+//! }
+//!
+//! let (age, name) = ineed::written::<u8>("Your age")
+//!   .until(|age| *age > 3 && *age < 120)
+//!   .map(|age| match age {
+//!     ..18 => Age::Minor,
+//!     _ => Age::LegalAge,
+//!   })
+//!   .then(ineed::written::<String>("Your name"))
+//!   .prompt()
+//!   .unwrap();
+//! ```
 
 #![cfg_attr(nightly, feature(doc_cfg, doc_notable_trait))]
 #![warn(missing_docs, unused_allocation, missing_copy_implementations)]
