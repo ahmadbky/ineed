@@ -32,6 +32,8 @@ This example prints something similar to this:
 >
 ```
 
+## Features
+
 You want to customize the prompt? Use the `.fmt(...)` method like this:
 
 ```rust
