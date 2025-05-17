@@ -1,4 +1,4 @@
-//! CLI prompting library.
+//! Lightweight CLI prompting library.
 //!
 //! This crate provides utility traits and types to prompt values from the user in a CLI, in a more
 //! convenient way. It also allows you to customize the style of the prompts.

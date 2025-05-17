@@ -73,7 +73,7 @@ impl_tup_to_strings! {
     V, W, X, Y, Z
 }
 
-/// Used to parse a tuple of strings into a tuple of concrete types.
+/// Used to parse a tuple of `&str`s into a tuple of concrete types.
 ///
 /// This trait is used as a bound for the output type of the [`ManyWritten`] promptable type.
 #[diagnostic::on_unimplemented(
@@ -87,7 +87,7 @@ trait TryFromOutput<Output> {
         Self: Sized;
 }
 
-/// Used for the `impl_try_from_output` macro expansion, to repeat the String type mention in tuples.
+/// Used for the `impl_try_from_output` macro expansion, to repeat the &str type mention in tuples.
 trait StrType {
     type Str<'a>;
 }

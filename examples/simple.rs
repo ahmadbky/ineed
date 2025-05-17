@@ -17,7 +17,7 @@ fn main() -> anyhow::Result<()> {
             ("Foobar", Level::Bad),
         ],
     )
-    .fmt(ineed::fmt().break_line(false).repeat_prompt(true))
+    .fmt(ineed::fmt().repeat_prompt(true))
     .prompt()?;
 
     println!("username={username}");
